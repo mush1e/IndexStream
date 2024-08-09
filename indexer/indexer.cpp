@@ -51,6 +51,9 @@ namespace indexer {
 
             std::regex whitespaceRegex("\\s+");
             document = std::regex_replace(document, whitespaceRegex, " ");
+            std::transform(document.begin(), document.end(), document.begin(), [](unsigned char c) {
+                return std::tolower(c);
+            });
         }
     }
 
@@ -129,6 +132,33 @@ namespace indexer {
                 delete_file(f_name);
             }
         }
+        insert_term_document_matrix();
+    }
+
+    auto Indexer::insert_term_document_matrix() -> void {
+        mongocxx::instance instance{};
+        mongocxx::client client{mongocxx::uri{"mongodb+srv://Mustafa:<pwd>@gplusplus.22ofm.mongodb.net/?retryWrites=true&w=majority&appName=GPlusPlus"}};
+
+        auto db = client["search_engine"];
+        auto collection = db["term_document_matrix"];
+
+        for (const auto& [term, queue] : this->term_document_matrix) {
+            bsoncxx::builder::basic::document document{};
+            document.append(bsoncxx::builder::basic::kvp("term", term));
+            bsoncxx::builder::basic::array urls_array;
+            auto queueCopy = queue;
+            while (!queueCopy.empty()) {
+                const auto& [url, count] = queueCopy.top();
+                bsoncxx::builder::basic::document url_doc;
+                url_doc.append(bsoncxx::builder::basic::kvp("url", url));
+                url_doc.append(bsoncxx::builder::basic::kvp("count", count));
+                urls_array.append(url_doc);
+                queueCopy.pop();
+            }
+            document.append(bsoncxx::builder::basic::kvp("urls", urls_array));
+            collection.insert_one(document.view());
+        }
+
     }
 }
 

@@ -1,5 +1,10 @@
 #pragma once
 
+#include <bsoncxx/json.hpp>
+#include <bsoncxx/builder/stream/document.hpp>
+#include <mongocxx/client.hpp>
+#include <mongocxx/instance.hpp>
+#include <mongocxx/uri.hpp>
 #include <iostream>
 #include <fstream>
 #include <filesystem>
@@ -11,6 +16,7 @@
 #include <regex>
 #include <sstream>
 #include <algorithm>
+
 
 namespace fs = std::filesystem;
 
@@ -40,6 +46,7 @@ namespace indexer {
         std::unordered_map<std::string, std::priority_queue<std::pair<std::string, long long>, std::vector<std::pair<std::string, long long>>, CompareSize>> term_document_matrix;
         std::unordered_set<std::string> indexed_documents;
         void print_term_document_matrix() const;
+        void insert_term_document_matrix();
         bool delete_file(const std::string& file_name);
     };
 
