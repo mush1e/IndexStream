@@ -28,9 +28,9 @@ namespace indexer {
             std::cout << "Indexer Initiated...." << std::endl;
         };
 
-        void document_parser(std::string& file_name);
+        void document_parser(std::string& file_name, std::string& document);
         void directory_spider();
-        void index_updater(std::string& f_name);
+        void index_updater(std::string& document, std::string& url);
         std::string url_extractor(std::string file_name);
 
     private:
@@ -39,6 +39,8 @@ namespace indexer {
         // Inverted Index; 
         std::unordered_map<std::string, std::priority_queue<std::pair<std::string, long long>, std::vector<std::pair<std::string, long long>>, CompareSize>> term_document_matrix;
         std::unordered_set<std::string> indexed_documents;
+        void print_term_document_matrix() const;
+        bool delete_file(const std::string& file_name);
     };
 
 }
