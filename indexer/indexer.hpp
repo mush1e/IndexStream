@@ -36,6 +36,7 @@ namespace indexer {
 
         void document_parser(std::string& file_name, std::string& document);
         void directory_spider();
+        // void directory_spider(std::string& file_name);
         void index_updater(std::string& document, std::string& url);
         std::string url_extractor(std::string file_name);
 

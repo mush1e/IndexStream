@@ -88,6 +88,7 @@ namespace indexer {
         try {
             if (std::filesystem::remove(file_name)) {
                 std::cout << "File '" << file_name << "' successfully deleted." << std::endl;
+                this->indexed_documents.erase(file_name);
                 return true;
             } else {
                 std::cerr << "File '" << file_name << "' not found or could not be deleted." << std::endl;
@@ -137,7 +138,7 @@ namespace indexer {
 
     auto Indexer::insert_term_document_matrix() -> void {
         mongocxx::instance instance{};
-        mongocxx::client client{mongocxx::uri{"mongodb+srv://Mustafa:<pwd>@gplusplus.22ofm.mongodb.net/?retryWrites=true&w=majority&appName=GPlusPlus"}};
+        mongocxx::client client{mongocxx::uri{"mongodb+srv://Mustafa:TermDocumentMatrix123@gplusplus.22ofm.mongodb.net/?retryWrites=true&w=majority&appName=GPlusPlus"}};
 
         auto db = client["search_engine"];
         auto collection = db["term_document_matrix"];
