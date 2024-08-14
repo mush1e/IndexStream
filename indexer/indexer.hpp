@@ -11,6 +11,9 @@
 #include <regex>
 #include <sstream>
 #include <algorithm>
+#include <thread>
+#include <future>
+#include <mutex>
 #include <sqlite3.h>
 
 
@@ -36,7 +39,7 @@ namespace indexer {
             std::cout << "Indexer Initiated...." << std::endl;
         };
 
-        void document_parser(std::string& file_name, std::string& document);
+        void document_parser(const std::string& file_name, std::string& document);
         void directory_spider();
         void index_updater(std::string& document, std::string& url);
         std::string url_extractor(std::string file_name);
@@ -45,6 +48,7 @@ namespace indexer {
         sqlite3* db_; // DB instance
         std::string dump_dir {};
         std::string index_file {};
+        std::mutex file_mutex;
         // Inverted Index; 
         std::unordered_map<std::string, std::priority_queue<std::pair<std::string, long long>, std::vector<std::pair<std::string, long long>>, CompareSize>> term_document_matrix;
         std::unordered_set<std::string> indexed_documents;

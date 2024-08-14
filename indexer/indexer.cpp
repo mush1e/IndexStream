@@ -19,7 +19,7 @@ namespace indexer {
         return url;
     }
 
-    auto Indexer::document_parser(std::string& file_name, std::string& document) -> void {
+    auto Indexer::document_parser(const std::string& file_name, std::string& document) -> void {
         std::ifstream file(file_name);
         if (!file.is_open()) {
             std::cerr << "Failed to open file: " << file_name << std::endl;
@@ -120,11 +120,13 @@ namespace indexer {
     }
 
     auto Indexer::directory_spider() -> void {
-        for (const auto& dir_entry : fs::directory_iterator(this->dump_dir)) {
-            std::string f_name = dir_entry.path().string();
+        std::vector<std::future<void>> futures;
+        auto process_file = [this](const std::string& f_name) {
+            std::lock_guard<std::mutex> lock(file_mutex); 
             if (f_name.find(".gitkeep") != std::string::npos)
-                continue;
-            std::string document {};
+                return;
+
+            std::string document{};
             if (this->indexed_documents.find(f_name) == this->indexed_documents.end()) { 
                 this->indexed_documents.insert(f_name);
                 std::string url = url_extractor(f_name);
@@ -132,7 +134,18 @@ namespace indexer {
                 index_updater(document, url);
                 delete_file(f_name);
             }
+        };
+
+        for (const auto& dir_entry : fs::directory_iterator(this->dump_dir)) {
+            std::string f_name = dir_entry.path().string();
+            std::cout << f_name << std::endl;
+            futures.push_back(std::async(std::launch::async, process_file, f_name));
         }
+
+        for (auto& future : futures) {
+            future.get();
+        }
+
         transform_to_persist();
     }
 
@@ -219,20 +232,37 @@ namespace indexer {
     }
 
     auto Indexer::transform_to_persist() -> void {
-        sqlite3_exec(db_, "BEGIN TRANSACTION:", nullptr, nullptr, nullptr);
+        sqlite3_exec(db_, "BEGIN TRANSACTION;", nullptr, nullptr, nullptr);
+
+        std::vector<std::tuple<long long, long long, long long>> term_docs_to_insert;
 
         for (const auto& [term, doc_queue] : term_document_matrix) {
             long long term_id = get_or_insert_term(term);
+            std::cout << term_id << std::endl;
             std::priority_queue<std::pair<std::string, long long>, std::vector<std::pair<std::string, long long>>, CompareSize> term_docs = doc_queue;
             while (!term_docs.empty()) {
                 const auto& [url, count] = term_docs.top();
                 term_docs.pop();
                 long long doc_id = get_or_insert_document(url);
-                insert_term_document_matrix(term_id, doc_id, count);
+                term_docs_to_insert.emplace_back(term_id, doc_id, count);
             }
         }
+
+        sqlite3_stmt* stmt;
+        sqlite3_prepare_v2(db_, "INSERT INTO term_document_matrix (term_id, document_id, frequency) VALUES (?, ?, ?);", -1, &stmt, nullptr);
+        
+        for (const auto& [term_id, doc_id, freq] : term_docs_to_insert) {
+            sqlite3_bind_int64(stmt, 1, term_id);
+            sqlite3_bind_int64(stmt, 2, doc_id);
+            sqlite3_bind_int64(stmt, 3, freq);
+            sqlite3_step(stmt);
+            sqlite3_reset(stmt);
+        }
+
+        sqlite3_finalize(stmt);
         sqlite3_exec(db_, "COMMIT;", nullptr, nullptr, nullptr);
     }
+
 
 }
 
