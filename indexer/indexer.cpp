@@ -133,12 +133,91 @@ namespace indexer {
                 delete_file(f_name);
             }
         }
-        insert_term_document_matrix();
+        // insert_term_document_matrix();
     }
 
-    auto Indexer::insert_term_document_matrix() -> void {
-            
+    auto Indexer::execute_sql(const char* query) -> void {
+        char* errmsg = nullptr;
+        if (sqlite3_exec(db_, query, nullptr, nullptr, &errmsg) != SQLITE_OK) {
+            std::cerr << "SQL error: " << errmsg << std::endl;
+            sqlite3_free(errmsg);
+        }
     }
+
+    auto Indexer::create_tables() -> void {
+
+        const char* create_terms_table = R"(
+            CREATE TABLE IF NOT EXISTS terms (
+                term_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                term TEXT UNIQUE
+            );
+        )";
+
+        const char* create_documents_table = R"(
+            CREATE TABLE IF NOT EXISTS documents (
+                document_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                document_name TEXT UNIQUE
+            );
+        )";
+
+        const char* create_matrix_table = R"(
+            CREATE TABLE IF NOT EXISTS term_document_matrix (
+                term_id INTEGER,
+                document_id INTEGER,
+                frequency INTEGER,
+                PRIMARY KEY (term_id, document_id),
+                FOREIGN KEY (term_id) REFERENCES terms(term_id),
+                FOREIGN KEY (document_id) REFERENCES documents(document_id)
+            );
+        )";
+
+        execute_sql(create_terms_table);
+        execute_sql(create_documents_table);
+        execute_sql(create_matrix_table);
+    }
+
+    auto Indexer::get_or_insert_term(const std::string& term) -> long long {
+        sqlite3_stmt* stmt;
+        sqlite3_prepare_v2(db_, "INSERT OR IGNORE INTO terms (term) VALUES (?);", -1, &stmt, nullptr);
+        sqlite3_bind_text(stmt, 1, term.c_str(), -1, SQLITE_STATIC);
+        sqlite3_step(stmt);
+        sqlite3_finalize(stmt);
+
+        sqlite3_prepare_v2(db_, "SELECT term_id FROM terms WHERE term = ?;", -1, &stmt, nullptr);
+        sqlite3_bind_text(stmt, 1, term.c_str(), -1, SQLITE_STATIC);
+        sqlite3_step(stmt);
+        long long term_id = sqlite3_column_int64(stmt, 0);
+        sqlite3_finalize(stmt);
+
+        return term_id;
+    }
+
+    auto Indexer::get_or_insert_document(const std::string& document) -> long long {
+        sqlite3_stmt* stmt;
+        sqlite3_prepare_v2(db_, "INSERT OR IGNORE INTO documents (document_name) VALUES (?);", -1, &stmt, nullptr);
+        sqlite3_bind_text(stmt, 1, document.c_str(), -1, SQLITE_STATIC);
+        sqlite3_step(stmt);
+        sqlite3_finalize(stmt);
+
+        sqlite3_prepare_v2(db_, "SELECT document_id FROM documents WHERE document_name = ?;", -1, &stmt, nullptr);
+        sqlite3_bind_text(stmt, 1, document.c_str(), -1, SQLITE_STATIC);
+        sqlite3_step(stmt);
+        long long doc_id = sqlite3_column_int64(stmt, 0);
+        sqlite3_finalize(stmt);
+
+        return doc_id;
+    }
+
+    auto Indexer::insert_term_document_matrix(long long term_id, long long doc_id, long long freq) -> void {
+        sqlite3_stmt* stmt;
+            sqlite3_prepare_v2(db_, "INSERT INTO term_document_matrix (term_id, document_id, size) VALUES (?, ?, ?);", -1, &stmt, nullptr);
+            sqlite3_bind_int64(stmt, 1, term_id);
+            sqlite3_bind_int64(stmt, 2, doc_id);
+            sqlite3_bind_int64(stmt, 3, size);
+            sqlite3_step(stmt);
+            sqlite3_finalize(stmt);
+    }
+
 }
 
 
