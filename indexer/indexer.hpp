@@ -1,10 +1,5 @@
 #pragma once
 
-#include <bsoncxx/json.hpp>
-#include <bsoncxx/builder/stream/document.hpp>
-#include <mongocxx/client.hpp>
-#include <mongocxx/instance.hpp>
-#include <mongocxx/uri.hpp>
 #include <iostream>
 #include <fstream>
 #include <filesystem>
@@ -16,6 +11,7 @@
 #include <regex>
 #include <sstream>
 #include <algorithm>
+#include <sqlite3.h>
 
 
 namespace fs = std::filesystem;
@@ -41,6 +37,7 @@ namespace indexer {
         std::string url_extractor(std::string file_name);
 
     private:
+        sqlite3* db; // DB instance
         std::string dump_dir {};
         std::string index_file {};
         // Inverted Index; 

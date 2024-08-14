@@ -1,0 +1,101 @@
+# Compiled object files
+*.o
+*.obj
+
+# Compiled dynamic libraries
+*.dll
+*.so
+*.dylib
+
+# Compiled static libraries
+*.lib
+*.a
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Dependency directories
+vendor/
+third_party/
+
+# Build directories
+build/
+bin/
+Debug/
+Release/
+
+# IDE files
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln
+*.csproj
+*.swp
+
+# CMake files
+CMakeFiles/
+CMakeCache.txt
+*.cmake
+Makefile
+CMakeScripts/
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.bak
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+
+# Build output
+bin/
+build/
+*.out
+*.a
+
+# Dependency directories (Go modules)
+vendor/
+
+# Go workspace files
+*.go.work
+*.go.work.mod
+
+# IDE and editor files
+*.idea/
+*.vscode/
+*.swp
+*.swo
+*.sublime-workspace
+*.sublime-project
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+raw_dump/*
+!raw_dump/.gitkeep
+
+db/*
+!db/.gitkeep
