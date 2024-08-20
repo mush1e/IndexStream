@@ -72,7 +72,7 @@ class WebCrawler:
         return self.visited_urls
 
 if __name__ == '__main__':
-    seed_url = 'https://techcrunch.com'
+    seed_url = 'https://en.wikipedia.org/wiki/Main_Page'
     crawler = WebCrawler(user_agent='MyCrawler', delay=1)
     crawled_urls = crawler.crawl(seed_url, max_pages=1000000)
     print("Crawled URLs:")
