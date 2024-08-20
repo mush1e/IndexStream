@@ -100,4 +100,4 @@ raw_dump/*
 db/*
 !db/.gitkeep
 
-./crawler/venv
+crawler/venv
