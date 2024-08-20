@@ -119,35 +119,32 @@ namespace indexer {
             term_document_matrix[term].emplace(url, count);
     }
 
-    auto Indexer::directory_spider() -> void {
-        std::vector<std::future<void>> futures;
-        auto process_file = [this](const std::string& f_name) {
-            std::lock_guard<std::mutex> lock(file_mutex); 
-            if (f_name.find(".gitkeep") != std::string::npos)
-                return;
+    void Indexer::process_file(const std::string& f_name) {
+        std::lock_guard<std::mutex> lock(file_mutex);
+        if (f_name.find(".gitkeep") != std::string::npos)
+            return;
 
-            std::string document{};
-            if (this->indexed_documents.find(f_name) == this->indexed_documents.end()) { 
-                this->indexed_documents.insert(f_name);
-                std::string url = url_extractor(f_name);
-                document_parser(f_name, document);
-                index_updater(document, url);
-                delete_file(f_name);
-            }
-        };
+        std::string document{};
+        if (this->indexed_documents.find(f_name) == this->indexed_documents.end()) {
+            this->indexed_documents.insert(f_name);
 
-        for (const auto& dir_entry : fs::directory_iterator(this->dump_dir)) {
+            std::string url = url_extractor(f_name);
+            document_parser(f_name, document);
+            index_updater(document, url);
+
+            transform_to_persist();
+            term_document_matrix.clear();
+            delete_file(f_name);
+        }
+    }
+
+    void Indexer::directory_spider() {
+        for (const auto& dir_entry : std::filesystem::directory_iterator(this->dump_dir)) {
             std::string f_name = dir_entry.path().string();
             std::cout << f_name << std::endl;
-            futures.push_back(std::async(std::launch::async, process_file, f_name));
+            process_file(f_name);
         }
-
-        for (auto& future : futures) {
-            future.get();
-        }
-
-        transform_to_persist();
-    }
+}
 
     auto Indexer::execute_sql(const char* query) -> void {
         char* errmsg = nullptr;
@@ -238,7 +235,6 @@ namespace indexer {
 
         for (const auto& [term, doc_queue] : term_document_matrix) {
             long long term_id = get_or_insert_term(term);
-            std::cout << term_id << std::endl;
             std::priority_queue<std::pair<std::string, long long>, std::vector<std::pair<std::string, long long>>, CompareSize> term_docs = doc_queue;
             while (!term_docs.empty()) {
                 const auto& [url, count] = term_docs.top();

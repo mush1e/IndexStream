@@ -54,6 +54,7 @@ namespace indexer {
         std::unordered_set<std::string> indexed_documents;
         void create_tables();
         void execute_sql(const char* query);
+        void process_file(const std::string& f_name);
         void print_term_document_matrix() const;
         long long get_or_insert_term(const std::string& term);
         long long get_or_insert_document(const std::string& document);  
