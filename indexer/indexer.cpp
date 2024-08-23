@@ -174,25 +174,22 @@ namespace indexer {
 
     auto Indexer::insert_term_document_matrix(long long term_id, long long doc_id, long long freq) -> void {
         sqlite3_stmt* stmt;
-            sqlite3_prepare_v2(db_, "INSERT INTO term_document_matrix (term_id, document_id, size) VALUES (?, ?, ?);", -1, &stmt, nullptr);
-            sqlite3_bind_int64(stmt, 1, term_id);
-            sqlite3_bind_int64(stmt, 2, doc_id);
-            sqlite3_bind_int64(stmt, 3, freq);
-            sqlite3_step(stmt);
-            sqlite3_finalize(stmt);
+        sqlite3_prepare_v2(db_, "INSERT INTO term_document_matrix (term_id, document_id, frequency) VALUES (?, ?, ?);", -1, &stmt, nullptr);
+        sqlite3_bind_int64(stmt, 1, term_id);
+        sqlite3_bind_int64(stmt, 2, doc_id);
+        sqlite3_bind_int64(stmt, 3, freq);
+        sqlite3_step(stmt);
+        sqlite3_finalize(stmt);
     }
 
     auto Indexer::transform_to_persist() -> void {
         sqlite3_exec(db_, "BEGIN TRANSACTION;", nullptr, nullptr, nullptr);
         for (const auto& [term, doc_queue] : term_document_matrix) {
             long long term_id = get_or_insert_term(term);
-            std::priority_queue<std::pair<std::string, long long>, std::vector<std::pair<std::string, long long>>, CompareSize> term_docs = doc_queue;
+            auto term_docs = doc_queue;
             while (!term_docs.empty()) {
-                const auto& [url, count] = term_docs.top();
+                const auto [url, count] = term_docs.top();
                 term_docs.pop();
-
-                std::cout << term_id << term << " : " << url << " - " << count << std::endl;
-
                 long long doc_id = get_or_insert_document(url);
                 insert_term_document_matrix(term_id, doc_id, count);
             }
@@ -201,7 +198,6 @@ namespace indexer {
     }
 
 
-    // TODO FIX
     auto Indexer::index_updater(std::string& document, std::string& url) -> void {
         if (document.empty())
             return;
@@ -232,7 +228,6 @@ namespace indexer {
             std::string url = url_extractor(f_name);
             document_parser(f_name, document);
             index_updater(document, url);
-
             transform_to_persist();
             term_document_matrix.clear();
             delete_file(f_name);
