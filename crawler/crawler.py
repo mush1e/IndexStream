@@ -42,7 +42,10 @@ class WebCrawler:
         links = set()
         for link in soup.find_all('a', href=True):
             full_url = urljoin(base_url, link['href'])
-            links.add(full_url)
+            # Filter for English Wikipedia pages only
+            parsed_url = urlparse(full_url)
+            if parsed_url.netloc == 'en.wikipedia.org':
+                links.add(full_url)
         return links
 
     def save_page(self, url, content):

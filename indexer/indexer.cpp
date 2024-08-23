@@ -230,9 +230,7 @@ namespace indexer {
 
     auto Indexer::transform_to_persist() -> void {
         sqlite3_exec(db_, "BEGIN TRANSACTION;", nullptr, nullptr, nullptr);
-
-        std::vector<std::tuple<long long, long long, long long>> term_docs_to_insert;
-
+        print_term_document_matrix();
         for (const auto& [term, doc_queue] : term_document_matrix) {
             long long term_id = get_or_insert_term(term);
             std::priority_queue<std::pair<std::string, long long>, std::vector<std::pair<std::string, long long>>, CompareSize> term_docs = doc_queue;
@@ -240,26 +238,11 @@ namespace indexer {
                 const auto& [url, count] = term_docs.top();
                 term_docs.pop();
                 long long doc_id = get_or_insert_document(url);
-                term_docs_to_insert.emplace_back(term_id, doc_id, count);
+                insert_term_document_matrix(term_id, doc_id, count);
             }
         }
-
-        sqlite3_stmt* stmt;
-        sqlite3_prepare_v2(db_, "INSERT INTO term_document_matrix (term_id, document_id, frequency) VALUES (?, ?, ?);", -1, &stmt, nullptr);
-        
-        for (const auto& [term_id, doc_id, freq] : term_docs_to_insert) {
-            sqlite3_bind_int64(stmt, 1, term_id);
-            sqlite3_bind_int64(stmt, 2, doc_id);
-            sqlite3_bind_int64(stmt, 3, freq);
-            sqlite3_step(stmt);
-            sqlite3_reset(stmt);
-        }
-
-        sqlite3_finalize(stmt);
         sqlite3_exec(db_, "COMMIT;", nullptr, nullptr, nullptr);
     }
-
-
 }
 
 
