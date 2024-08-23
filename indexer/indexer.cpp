@@ -100,52 +100,6 @@ namespace indexer {
         }
     }
 
-    auto Indexer::index_updater(std::string& document, std::string& url) -> void {
-        if (document.empty())
-            return;
-        
-        std::istringstream stream(document);
-        std::string word;
-        std::unordered_map<std::string, long long> wordCount;
-        std::transform(document.begin(), document.end(), document.begin(), ::tolower);
-
-        while (stream >> word) {
-            word.erase(std::remove_if(word.begin(), word.end(), ::ispunct), word.end());
-            if (!word.empty()) {
-                wordCount[word]++;
-            }
-        }
-        for (const auto& [term, count] : wordCount) 
-            term_document_matrix[term].emplace(url, count);
-    }
-
-    void Indexer::process_file(const std::string& f_name) {
-        std::lock_guard<std::mutex> lock(file_mutex);
-        if (f_name.find(".gitkeep") != std::string::npos)
-            return;
-
-        std::string document{};
-        if (this->indexed_documents.find(f_name) == this->indexed_documents.end()) {
-            this->indexed_documents.insert(f_name);
-
-            std::string url = url_extractor(f_name);
-            document_parser(f_name, document);
-            index_updater(document, url);
-
-            transform_to_persist();
-            term_document_matrix.clear();
-            delete_file(f_name);
-        }
-    }
-
-    void Indexer::directory_spider() {
-        for (const auto& dir_entry : std::filesystem::directory_iterator(this->dump_dir)) {
-            std::string f_name = dir_entry.path().string();
-            std::cout << f_name << std::endl;
-            process_file(f_name);
-        }
-}
-
     auto Indexer::execute_sql(const char* query) -> void {
         char* errmsg = nullptr;
         if (sqlite3_exec(db_, query, nullptr, nullptr, &errmsg) != SQLITE_OK) {
@@ -230,21 +184,69 @@ namespace indexer {
 
     auto Indexer::transform_to_persist() -> void {
         sqlite3_exec(db_, "BEGIN TRANSACTION;", nullptr, nullptr, nullptr);
-        print_term_document_matrix();
         for (const auto& [term, doc_queue] : term_document_matrix) {
             long long term_id = get_or_insert_term(term);
             std::priority_queue<std::pair<std::string, long long>, std::vector<std::pair<std::string, long long>>, CompareSize> term_docs = doc_queue;
             while (!term_docs.empty()) {
                 const auto& [url, count] = term_docs.top();
                 term_docs.pop();
+
+                std::cout << term_id << term << " : " << url << " - " << count << std::endl;
+
                 long long doc_id = get_or_insert_document(url);
                 insert_term_document_matrix(term_id, doc_id, count);
             }
         }
         sqlite3_exec(db_, "COMMIT;", nullptr, nullptr, nullptr);
     }
-}
 
+
+    // TODO FIX
+    auto Indexer::index_updater(std::string& document, std::string& url) -> void {
+        if (document.empty())
+            return;
+        
+        std::istringstream stream(document);
+        std::string word;
+        std::unordered_map<std::string, long long> wordCount;
+        std::transform(document.begin(), document.end(), document.begin(), ::tolower);
+
+        while (stream >> word) {
+            word.erase(std::remove_if(word.begin(), word.end(), ::ispunct), word.end());
+            if (!word.empty()) {
+                wordCount[word]++;
+            }
+        }
+        for (const auto& [term, count] : wordCount) 
+            term_document_matrix[term].emplace(url, count);
+    }
+
+    void Indexer::process_file(const std::string& f_name) {
+        if (f_name.find(".gitkeep") != std::string::npos)
+            return;
+
+        std::string document{};
+        if (this->indexed_documents.find(f_name) == this->indexed_documents.end()) {
+            this->indexed_documents.insert(f_name);
+
+            std::string url = url_extractor(f_name);
+            document_parser(f_name, document);
+            index_updater(document, url);
+
+            transform_to_persist();
+            term_document_matrix.clear();
+            delete_file(f_name);
+        }
+    }
+
+    void Indexer::directory_spider() {
+        for (const auto& dir_entry : std::filesystem::directory_iterator(this->dump_dir)) {
+            std::string f_name = dir_entry.path().string();
+            std::cout << f_name << std::endl;
+            process_file(f_name);
+        }
+    }
+}
 
 int main() {
     indexer::Indexer idxr;
