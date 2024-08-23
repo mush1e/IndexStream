@@ -135,9 +135,14 @@ namespace indexer {
             );
         )";
 
+        const char* create_term_index = R"(
+            CREATE INDEX IF NOT EXISTS idx_term ON terms(term);
+        )";
+
         execute_sql(create_terms_table);
         execute_sql(create_documents_table);
         execute_sql(create_matrix_table);
+        execute_sql(create_term_index);
     }
 
     auto Indexer::get_or_insert_term(const std::string& term) -> long long {
