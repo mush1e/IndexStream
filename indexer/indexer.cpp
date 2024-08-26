@@ -252,3 +252,9 @@ int main() {
     indexer::Indexer idxr;
     idxr.directory_spider();
 }
+
+
+/*
+    Using frequency to score relevance for now need to add something better like page rank
+    Also start building the go backend and think about how you can regularly index and scrape
+ */
