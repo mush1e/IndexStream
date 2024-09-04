@@ -1,2 +1,2 @@
 # crawler
-Web crawler and indexer microservice for my G++ search engine
+Web crawler and indexer for my search engine
