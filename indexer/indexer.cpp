@@ -113,14 +113,16 @@ namespace indexer {
         const char* create_terms_table = R"(
             CREATE TABLE IF NOT EXISTS terms (
                 term_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                term TEXT UNIQUE
+                term TEXT UNIQUE,
+                document_count INTEGER
             );
         )";
 
         const char* create_documents_table = R"(
             CREATE TABLE IF NOT EXISTS documents (
                 document_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                document_name TEXT UNIQUE
+                document_name TEXT UNIQUE,
+                term_count INTEGER
             );
         )";
 
@@ -252,9 +254,3 @@ int main() {
     indexer::Indexer idxr;
     idxr.directory_spider();
 }
-
-
-/*
-    Using frequency to score relevance for now need to add something better like page rank
-    Also start building the go backend and think about how you can regularly index and scrape
- */
