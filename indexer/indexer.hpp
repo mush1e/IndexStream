@@ -43,6 +43,7 @@ namespace indexer {
         void directory_spider();
         void index_updater(std::string& document, std::string& url);
         std::string url_extractor(std::string file_name);
+        std::vector<std::pair<std::string, double>> search(const std::string& query_term);
 
     private:
         sqlite3* db_; // DB instance

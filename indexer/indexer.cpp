@@ -398,12 +398,62 @@ namespace indexer {
             std::cout << f_name << std::endl;
             process_file(f_name);
         }
-        // std::cout << "Updating TF-IDF values" << std::endl;
         update_idf();
     }
+
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Basic Search Function to test my stuff ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+
+    auto Indexer::search(const std::string& query_term) -> std::vector<std::pair<std::string, double>>{
+        std::vector<std::pair<std::string, double>> results; // Vector to store document name and TF-IDF score
+
+        sqlite3_stmt* stmt;
+
+        // Prepare the SQL query to get TF-IDF scores for the given term and document names
+        const char* search_query = R"(
+            SELECT d.document_name, td.tf_idf
+            FROM term_document_matrix td
+            JOIN documents d ON td.document_id = d.document_id
+            WHERE td.term_id = (SELECT term_id FROM terms WHERE term = ?)
+            ORDER BY td.tf_idf DESC
+        )";
+
+        // Prepare the statement
+        if (sqlite3_prepare_v2(db_, search_query, -1, &stmt, nullptr) != SQLITE_OK) {
+            std::cerr << "Failed to prepare statement: " << sqlite3_errmsg(db_) << std::endl;
+            return results;
+        }
+
+        // Bind the query term to the statement
+        if (sqlite3_bind_text(stmt, 1, query_term.c_str(), -1, SQLITE_TRANSIENT) != SQLITE_OK) {
+            std::cerr << "Failed to bind query term: " << sqlite3_errmsg(db_) << std::endl;
+            sqlite3_finalize(stmt);
+            return results;
+        }
+
+        // Execute the query and process results
+        while (sqlite3_step(stmt) == SQLITE_ROW) {
+            std::string document_name(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0)));
+            double tf_idf = sqlite3_column_double(stmt, 1);
+
+            // Store the result
+            results.emplace_back(document_name, tf_idf);
+        }
+
+        // Finalize the statement
+        sqlite3_finalize(stmt);
+
+        return results;
+    }
+
 }
+
+
 
 int main() {
     indexer::Indexer idxr;
     idxr.directory_spider();
+    auto results = idxr.search("gothic");
+    for (const auto& result : results) {
+        std::cout << result.first << " - " << result.second << std::endl;
+    }
 }
