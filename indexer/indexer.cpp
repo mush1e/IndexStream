@@ -208,12 +208,22 @@ namespace indexer {
     auto Indexer::insert_term_document_matrix(long long term_id, long long doc_id, long long freq) -> void {
         sqlite3_stmt* stmt;
 
-        // Get the total terms in this document
-        sqlite3_prepare_v2(db_, "SELECT total_terms FROM documents WHERE document_id = ?;", -1, &stmt, nullptr);
-        sqlite3_bind_int64(stmt, 1, doc_id);
+        // Insert the term into the term-document matrix
+        sqlite3_prepare_v2(db_, 
+            "INSERT INTO term_document_matrix (term_id, document_id, frequency) "
+            "VALUES (?, ?, ?);", 
+            -1, &stmt, nullptr);
+        sqlite3_bind_int64(stmt, 1, term_id);
+        sqlite3_bind_int64(stmt, 2, doc_id);
+        sqlite3_bind_int64(stmt, 3, freq);  // Store the frequency
         sqlite3_step(stmt);
-        long long total_terms = sqlite3_column_int64(stmt, 0);  // total terms in the document
         sqlite3_finalize(stmt);
+    }
+
+
+
+    auto Indexer::update_idf() -> void {
+        sqlite3_stmt* stmt;
 
         // Get the total number of documents (for IDF calculation)
         sqlite3_prepare_v2(db_, "SELECT total_documents FROM stats;", -1, &stmt, nullptr);
@@ -221,30 +231,15 @@ namespace indexer {
         long long total_documents = sqlite3_column_int64(stmt, 0);
         sqlite3_finalize(stmt);
 
-        // Get the document count for the term (for IDF calculation)
-        sqlite3_prepare_v2(db_, "SELECT document_count FROM terms WHERE term_id = ?;", -1, &stmt, nullptr);
-        sqlite3_bind_int64(stmt, 1, term_id);
-        sqlite3_step(stmt);
-        long long doc_count_for_term = sqlite3_column_int64(stmt, 0);
-        sqlite3_finalize(stmt);
+        // Update IDF for each term in the term-document matrix
+        const char* update_idf_query = R"(
+            UPDATE term_document_matrix
+            SET tf_idf = (SELECT frequency / CAST((SELECT total_terms FROM documents WHERE document_id = term_document_matrix.document_id) AS REAL)) 
+                        * log( CAST(? AS REAL) / (SELECT document_count FROM terms WHERE term_id = term_document_matrix.term_id) )
+        )";
 
-        // Calculate TF and IDF
-        double tf = static_cast<double>(freq) / total_terms;
-        double idf = log(static_cast<double>(total_documents) / doc_count_for_term);
-        double tf_idf = tf * idf;
-
-        // Insert or update the term into the term-document matrix
-        sqlite3_prepare_v2(db_, 
-            "INSERT INTO term_document_matrix (term_id, document_id, frequency, tf_idf) "
-            "VALUES (?, ?, ?, ?) "
-            "ON CONFLICT(term_id, document_id) DO UPDATE SET frequency = ?, tf_idf = ?;", 
-            -1, &stmt, nullptr);
-        sqlite3_bind_int64(stmt, 1, term_id);
-        sqlite3_bind_int64(stmt, 2, doc_id);
-        sqlite3_bind_int64(stmt, 3, freq);  // Store the frequency
-        sqlite3_bind_double(stmt, 4, tf_idf);  // Store the TF-IDF
-        sqlite3_bind_int64(stmt, 5, freq);  // Update frequency if exists
-        sqlite3_bind_double(stmt, 6, tf_idf);  // Update TF-IDF if exists
+        sqlite3_prepare_v2(db_, update_idf_query, -1, &stmt, nullptr);
+        sqlite3_bind_int64(stmt, 1, total_documents);  // Pass the total number of documents
         sqlite3_step(stmt);
         sqlite3_finalize(stmt);
     }
@@ -342,6 +337,7 @@ namespace indexer {
             std::cout << f_name << std::endl;
             process_file(f_name);
         }
+        update_idf();
     }
 }
 
