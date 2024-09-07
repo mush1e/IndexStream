@@ -137,7 +137,7 @@ namespace indexer {
                 term_id INTEGER,
                 document_id INTEGER,
                 frequency INTEGER, -- Number of occurrences of the term in the document (TF numerator)
-                tf_idf REAL, -- Precomputed TF_IDF value
+                tf_idf REAL DEFAULT 0.0, -- Precomputed TF_IDF value
                 PRIMARY KEY (term_id, document_id),
                 FOREIGN KEY (term_id) REFERENCES terms(term_id),
                 FOREIGN KEY (document_id) REFERENCES documents(document_id)
@@ -216,12 +216,13 @@ namespace indexer {
 
         // Insert the term into the term-document matrix
         sqlite3_prepare_v2(db_, 
-            "INSERT INTO term_document_matrix (term_id, document_id, frequency) "
-            "VALUES (?, ?, ?);", 
+            "INSERT INTO term_document_matrix (term_id, document_id, frequency, tf_idf) "
+            "VALUES (?, ?, ?, ?);", 
             -1, &stmt, nullptr);
         sqlite3_bind_int64(stmt, 1, term_id);
         sqlite3_bind_int64(stmt, 2, doc_id);
         sqlite3_bind_int64(stmt, 3, freq);  // Store the frequency
+        sqlite3_bind_double(stmt, 4, 0.0);  // Store temp tf-idf
         sqlite3_step(stmt);
         sqlite3_finalize(stmt);
     }
@@ -233,23 +234,74 @@ namespace indexer {
 
         // Get the total number of documents (for IDF calculation)
         sqlite3_prepare_v2(db_, "SELECT total_documents FROM stats;", -1, &stmt, nullptr);
-        sqlite3_step(stmt);
+        if (sqlite3_step(stmt) != SQLITE_ROW) {
+            std::cerr << "Failed to get total_documents: " << sqlite3_errmsg(db_) << std::endl;
+            sqlite3_finalize(stmt);
+            return;
+        }
         long long total_documents = sqlite3_column_int64(stmt, 0);
         std::cout << "Total Documents : " << total_documents << std::endl;
         sqlite3_finalize(stmt);
 
-        // Update IDF for each term in the term-document matrix
-        const char* update_idf_query = R"(
-            UPDATE term_document_matrix
-            SET tf_idf = (SELECT frequency / CAST((SELECT total_terms FROM documents WHERE document_id = term_document_matrix.document_id) AS REAL)) 
-                        * log( CAST(? AS REAL) / (SELECT document_count FROM terms WHERE term_id = term_document_matrix.term_id) )
+        // Fetch term-document matrix data
+        const char* select_query = R"(
+            SELECT term_id, document_id, frequency
+            FROM term_document_matrix;
         )";
+        if (sqlite3_prepare_v2(db_, select_query, -1, &stmt, nullptr) != SQLITE_OK) {
+            std::cerr << "Failed to prepare select_query: " << sqlite3_errmsg(db_) << std::endl;
+            return;
+        }
 
-        sqlite3_prepare_v2(db_, update_idf_query, -1, &stmt, nullptr);
-        sqlite3_bind_int64(stmt, 1, total_documents);  // Pass the total number of documents
-        sqlite3_step(stmt);
+        std::unordered_map<long long, long long> document_term_counts;
+        std::unordered_map<long long, double> term_idfs;
+
+        // Iterate through the term-document matrix
+        while (sqlite3_step(stmt) == SQLITE_ROW) {
+            long long term_id = sqlite3_column_int64(stmt, 0);
+            long long doc_id = sqlite3_column_int64(stmt, 1);
+            long long frequency = sqlite3_column_int64(stmt, 2);
+
+            // Fetch total terms for the document
+            sqlite3_stmt* doc_stmt;
+            sqlite3_prepare_v2(db_, "SELECT total_terms FROM documents WHERE document_id = ?;", -1, &doc_stmt, nullptr);
+            sqlite3_bind_int64(doc_stmt, 1, doc_id);
+            if (sqlite3_step(doc_stmt) == SQLITE_ROW) {
+                long long total_terms = sqlite3_column_int64(doc_stmt, 0);
+                double tf = static_cast<double>(frequency) / total_terms;
+                if (term_idfs.find(term_id) == term_idfs.end()) {
+                    // Calculate IDF
+                    sqlite3_stmt* term_stmt;
+                    sqlite3_prepare_v2(db_, "SELECT document_count FROM terms WHERE term_id = ?;", -1, &term_stmt, nullptr);
+                    sqlite3_bind_int64(term_stmt, 1, term_id);
+                    if (sqlite3_step(term_stmt) == SQLITE_ROW) {
+                        long long document_count = sqlite3_column_int64(term_stmt, 0);
+                        double idf = log(static_cast<double>(total_documents) / (document_count + 1)); // Add 1 to avoid division by zero
+                        term_idfs[term_id] = idf;
+                    }
+                    sqlite3_finalize(term_stmt);
+                }
+
+                // Calculate TF-IDF
+                double tf_idf = tf * term_idfs[term_id];
+
+                // Update TF-IDF in the database
+                sqlite3_stmt* update_stmt;
+                sqlite3_prepare_v2(db_, "UPDATE term_document_matrix SET tf_idf = ? WHERE term_id = ? AND document_id = ?;", -1, &update_stmt, nullptr);
+                sqlite3_bind_double(update_stmt, 1, tf_idf);
+                sqlite3_bind_int64(update_stmt, 2, term_id);
+                sqlite3_bind_int64(update_stmt, 3, doc_id);
+                if (sqlite3_step(update_stmt) != SQLITE_DONE) {
+                    std::cerr << "Failed to update TF-IDF: " << sqlite3_errmsg(db_) << std::endl;
+                }
+                sqlite3_finalize(update_stmt);
+            }
+            sqlite3_finalize(doc_stmt);
+        }
         sqlite3_finalize(stmt);
     }
+
+
 
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ insert in memory term document matrix to persistant store ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
     auto Indexer::transform_to_persist() -> void {
@@ -346,7 +398,7 @@ namespace indexer {
             std::cout << f_name << std::endl;
             process_file(f_name);
         }
-        std::cout << "Updating TF-IDF values" << std::endl;
+        // std::cout << "Updating TF-IDF values" << std::endl;
         update_idf();
     }
 }
