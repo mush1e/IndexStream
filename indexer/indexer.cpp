@@ -452,8 +452,14 @@ namespace indexer {
 int main() {
     indexer::Indexer idxr;
     idxr.directory_spider();
-    auto results = idxr.search("gothic");
-    for (const auto& result : results) {
-        std::cout << result.first << " - " << result.second << std::endl;
+    std::cout << "============SEARCH==========" << std::endl;
+    for (;;) {
+        std::string query {};
+        std::cout << "Enter search term: ";
+        std::cin >> query;
+        auto results = idxr.search(query);
+        for (const auto& result : results)
+            std::cout << result.first << " : " << result.second << std::endl; 
+        std::cout << "============================" << std::endl << std::endl;
     }
 }
