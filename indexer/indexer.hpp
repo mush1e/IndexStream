@@ -60,6 +60,8 @@ namespace indexer {
         long long get_or_insert_document(const std::string& document);  
         void insert_term_document_matrix(long long term_id, long long doc_id, long long frequency);
         void transform_to_persist();
+        void compute_tf_idf();
+        void update_idf();
         bool delete_file(const std::string& file_name);
     };
 
