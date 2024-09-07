@@ -51,7 +51,8 @@ namespace indexer {
         std::string index_file {};
         std::mutex file_mutex;
         // Inverted Index; 
-        std::unordered_map<std::string, std::priority_queue<std::pair<std::string, long long>, std::vector<std::pair<std::string, long long>>, CompareSize>> term_document_matrix;
+        // std::unordered_map<std::string, std::priority_queue<std::pair<std::string, long long>, std::vector<std::pair<std::string, long long>>, CompareSize>> term_document_matrix;
+        std::unordered_map<std::string, std::queue<std::pair<std::string, long long>>> term_document_matrix;
         std::unordered_set<std::string> indexed_documents;
         void create_tables();
         void execute_sql(const char* query);

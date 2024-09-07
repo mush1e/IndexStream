@@ -77,7 +77,7 @@ namespace indexer {
                 std::cout << "  No documents found for this term." << std::endl;
             } else {
                 while (!queueCopy.empty()) {
-                    const auto& [url, count] = queueCopy.top();
+                    const auto& [url, count] = queueCopy.front();
                     std::cout << "  URL: " << url << " | Count: " << count << std::endl;
                     queueCopy.pop();
                 }
@@ -310,7 +310,7 @@ namespace indexer {
             long long term_id = get_or_insert_term(term);
             auto term_docs = doc_queue;
             while (!term_docs.empty()) {
-                const auto [url, count] = term_docs.top();
+                const auto [url, count] = term_docs.front();
                 term_docs.pop();
                 long long doc_id = get_or_insert_document(url);
                 insert_term_document_matrix(term_id, doc_id, count);
