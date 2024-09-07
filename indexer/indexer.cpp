@@ -114,7 +114,7 @@ namespace indexer {
             CREATE TABLE IF NOT EXISTS terms (
                 term_id INTEGER PRIMARY KEY AUTOINCREMENT,
                 term TEXT UNIQUE,
-                document_count INTEGER
+                document_count INTEGER -- stores the number of documents where this term appears
             );
         )";
 
@@ -122,7 +122,8 @@ namespace indexer {
             CREATE TABLE IF NOT EXISTS documents (
                 document_id INTEGER PRIMARY KEY AUTOINCREMENT,
                 document_name TEXT UNIQUE,
-                term_count INTEGER
+                term_count INTEGER, -- Number of unique terms in document
+                total_terms INTEGER -- Total number of terms in document
             );
         )";
 
@@ -130,10 +131,17 @@ namespace indexer {
             CREATE TABLE IF NOT EXISTS term_document_matrix (
                 term_id INTEGER,
                 document_id INTEGER,
-                frequency INTEGER,
+                frequency INTEGER, -- Number of occurrences of the term in the document (TF numerator)
+                tf_idf REAL, -- Precomputed TF_IDF value
                 PRIMARY KEY (term_id, document_id),
                 FOREIGN KEY (term_id) REFERENCES terms(term_id),
                 FOREIGN KEY (document_id) REFERENCES documents(document_id)
+            );
+        )";
+
+        const char* create_stats_table = R"(
+            CREATE TABLE IF NOT EXISTS stats (
+                total_documents INTEGER  -- Total number of documents in the entire corpus
             );
         )";
 
@@ -141,10 +149,16 @@ namespace indexer {
             CREATE INDEX IF NOT EXISTS idx_term ON terms(term);
         )";
 
+        const char* create_tdm_index = R"(
+            CREATE INDEX IF NOT EXISTS idx_term_document ON term_document_matrix(term_id, document_id);
+        )";
+
         execute_sql(create_terms_table);
         execute_sql(create_documents_table);
         execute_sql(create_matrix_table);
+        execute_sql(create_stats_table);
         execute_sql(create_term_index);
+        execute_sql(create_tdm_index);
     }
 
     auto Indexer::get_or_insert_term(const std::string& term) -> long long {
