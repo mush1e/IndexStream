@@ -2,6 +2,7 @@
 
 namespace indexer {
 
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Extract URL from first line of file and remove delim ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
     auto Indexer::url_extractor(std::string file_name) -> std::string {
         std::string line;
         std::string url;
@@ -19,6 +20,7 @@ namespace indexer {
         return url;
     }
 
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Parse Document and remove the html tags ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
     auto Indexer::document_parser(const std::string& file_name, std::string& document) -> void {
         std::ifstream file(file_name);
         if (!file.is_open()) {
@@ -57,6 +59,7 @@ namespace indexer {
         }
     }
 
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Helper function to display the term document frequency matrix ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
     auto Indexer::print_term_document_matrix() const -> void {
         if (term_document_matrix.empty()) {
             std::cout << "The term-document matrix is empty." << std::endl;
@@ -84,6 +87,7 @@ namespace indexer {
         std::cout << "============================" << std::endl; 
     }
 
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Once document is stored in the DB delete it ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
     auto Indexer::delete_file(const std::string& file_name) -> bool {
         try {
             if (std::filesystem::remove(file_name)) {
@@ -99,7 +103,7 @@ namespace indexer {
             return false;
         }
     }
-
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Helper function to execute SQL queries ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
     auto Indexer::execute_sql(const char* query) -> void {
         char* errmsg = nullptr;
         if (sqlite3_exec(db_, query, nullptr, nullptr, &errmsg) != SQLITE_OK) {
@@ -108,6 +112,7 @@ namespace indexer {
         }
     }
 
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Create tables if they dont exist ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
     auto Indexer::create_tables() -> void {
 
         const char* create_terms_table = R"(
@@ -141,7 +146,7 @@ namespace indexer {
 
         const char* create_stats_table = R"(
             CREATE TABLE IF NOT EXISTS stats (
-                total_documents INTEGER  -- Total number of documents in the entire corpus
+                total_documents INTEGER DEFAULT 0  -- Total number of documents in the entire corpus
             );
         )";
 
@@ -161,22 +166,29 @@ namespace indexer {
         execute_sql(create_tdm_index);
     }
 
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ insert term in db if it doesnt exist and return the term id ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
     auto Indexer::get_or_insert_term(const std::string& term) -> long long {
         sqlite3_stmt* stmt;
-        sqlite3_prepare_v2(db_, "INSERT OR IGNORE INTO terms (term) VALUES (?);", -1, &stmt, nullptr);
+        // Insert the term if it doesn't exist
+        sqlite3_prepare_v2(db_, "INSERT OR IGNORE INTO terms (term, document_count) VALUES (?, 0);", -1, &stmt, nullptr);
         sqlite3_bind_text(stmt, 1, term.c_str(), -1, SQLITE_STATIC);
         sqlite3_step(stmt);
         sqlite3_finalize(stmt);
 
-        sqlite3_prepare_v2(db_, "SELECT term_id FROM terms WHERE term = ?;", -1, &stmt, nullptr);
+        // Select the term_id and document_count
+        sqlite3_prepare_v2(db_, "SELECT term_id, document_count FROM terms WHERE term = ?;", -1, &stmt, nullptr);
         sqlite3_bind_text(stmt, 1, term.c_str(), -1, SQLITE_STATIC);
         sqlite3_step(stmt);
         long long term_id = sqlite3_column_int64(stmt, 0);
+        long long doc_count = sqlite3_column_int64(stmt, 1);
         sqlite3_finalize(stmt);
 
         return term_id;
     }
 
+
+
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ insert document in db if it doesnt exist and return the term id ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
     auto Indexer::get_or_insert_document(const std::string& document) -> long long {
         sqlite3_stmt* stmt;
         sqlite3_prepare_v2(db_, "INSERT OR IGNORE INTO documents (document_name) VALUES (?);", -1, &stmt, nullptr);
@@ -192,17 +204,54 @@ namespace indexer {
 
         return doc_id;
     }
-
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ insert TDFM in db ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
     auto Indexer::insert_term_document_matrix(long long term_id, long long doc_id, long long freq) -> void {
         sqlite3_stmt* stmt;
-        sqlite3_prepare_v2(db_, "INSERT INTO term_document_matrix (term_id, document_id, frequency) VALUES (?, ?, ?);", -1, &stmt, nullptr);
+
+        // Get the total terms in this document
+        sqlite3_prepare_v2(db_, "SELECT total_terms FROM documents WHERE document_id = ?;", -1, &stmt, nullptr);
+        sqlite3_bind_int64(stmt, 1, doc_id);
+        sqlite3_step(stmt);
+        long long total_terms = sqlite3_column_int64(stmt, 0);  // total terms in the document
+        sqlite3_finalize(stmt);
+
+        // Get the total number of documents (for IDF calculation)
+        sqlite3_prepare_v2(db_, "SELECT total_documents FROM stats;", -1, &stmt, nullptr);
+        sqlite3_step(stmt);
+        long long total_documents = sqlite3_column_int64(stmt, 0);
+        sqlite3_finalize(stmt);
+
+        // Get the document count for the term (for IDF calculation)
+        sqlite3_prepare_v2(db_, "SELECT document_count FROM terms WHERE term_id = ?;", -1, &stmt, nullptr);
+        sqlite3_bind_int64(stmt, 1, term_id);
+        sqlite3_step(stmt);
+        long long doc_count_for_term = sqlite3_column_int64(stmt, 0);
+        sqlite3_finalize(stmt);
+
+        // Calculate TF and IDF
+        double tf = static_cast<double>(freq) / total_terms;
+        double idf = log(static_cast<double>(total_documents) / doc_count_for_term);
+        double tf_idf = tf * idf;
+
+        // Insert or update the term into the term-document matrix
+        sqlite3_prepare_v2(db_, 
+            "INSERT INTO term_document_matrix (term_id, document_id, frequency, tf_idf) "
+            "VALUES (?, ?, ?, ?) "
+            "ON CONFLICT(term_id, document_id) DO UPDATE SET frequency = ?, tf_idf = ?;", 
+            -1, &stmt, nullptr);
         sqlite3_bind_int64(stmt, 1, term_id);
         sqlite3_bind_int64(stmt, 2, doc_id);
-        sqlite3_bind_int64(stmt, 3, freq);
+        sqlite3_bind_int64(stmt, 3, freq);  // Store the frequency
+        sqlite3_bind_double(stmt, 4, tf_idf);  // Store the TF-IDF
+        sqlite3_bind_int64(stmt, 5, freq);  // Update frequency if exists
+        sqlite3_bind_double(stmt, 6, tf_idf);  // Update TF-IDF if exists
         sqlite3_step(stmt);
         sqlite3_finalize(stmt);
     }
 
+
+
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ insert in memory term document matrix to persistant store ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
     auto Indexer::transform_to_persist() -> void {
         sqlite3_exec(db_, "BEGIN TRANSACTION;", nullptr, nullptr, nullptr);
         for (const auto& [term, doc_queue] : term_document_matrix) {
@@ -218,26 +267,50 @@ namespace indexer {
         sqlite3_exec(db_, "COMMIT;", nullptr, nullptr, nullptr);
     }
 
-
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ create TDFM ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
     auto Indexer::index_updater(std::string& document, std::string& url) -> void {
-        if (document.empty())
-            return;
-        
+        if (document.empty()) return;
+
         std::istringstream stream(document);
         std::string word;
         std::unordered_map<std::string, long long> wordCount;
         std::transform(document.begin(), document.end(), document.begin(), ::tolower);
 
+        long long total_terms = 0;  // Track total number of terms
+        long long unique_terms = 0;  // Track unique terms
+
+        // Count word frequencies and total terms
         while (stream >> word) {
             word.erase(std::remove_if(word.begin(), word.end(), ::ispunct), word.end());
             if (!word.empty()) {
+                if (wordCount[word] == 0) {
+                    unique_terms++;  // Increment unique term count
+                }
                 wordCount[word]++;
+                total_terms++;  // Increment total terms count
             }
         }
-        for (const auto& [term, count] : wordCount) 
-            term_document_matrix[term].emplace(url, count);
+
+        long long doc_id = get_or_insert_document(url);
+
+        // Update the term_count and total_terms in the documents table
+        sqlite3_stmt* stmt;
+        sqlite3_prepare_v2(db_, "UPDATE documents SET term_count = ?, total_terms = ? WHERE document_id = ?;", -1, &stmt, nullptr);
+        sqlite3_bind_int64(stmt, 1, unique_terms);
+        sqlite3_bind_int64(stmt, 2, total_terms);
+        sqlite3_bind_int64(stmt, 3, doc_id);
+        sqlite3_step(stmt);
+        sqlite3_finalize(stmt);
+
+        // Insert the term frequencies into the term-document matrix
+        for (const auto& [term, count] : wordCount) {
+            long long term_id = get_or_insert_term(term);
+            insert_term_document_matrix(term_id, doc_id, count);
+        }
     }
 
+
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ parse document ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
     void Indexer::process_file(const std::string& f_name) {
         if (f_name.find(".gitkeep") != std::string::npos)
             return;
@@ -248,13 +321,21 @@ namespace indexer {
 
             std::string url = url_extractor(f_name);
             document_parser(f_name, document);
-            index_updater(document, url);
-            transform_to_persist();
+            index_updater(document, url);  // Update index, including frequencies
+            transform_to_persist();  // Move memory matrix to persistent storage
+
             term_document_matrix.clear();
             delete_file(f_name);
+
+            // Update total_documents in stats table
+            sqlite3_stmt* stmt;
+            sqlite3_prepare_v2(db_, "UPDATE stats SET total_documents = total_documents + 1;", -1, &stmt, nullptr);
+            sqlite3_step(stmt);
+            sqlite3_finalize(stmt);
         }
     }
 
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ crawl documents in dump directory ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
     void Indexer::directory_spider() {
         for (const auto& dir_entry : std::filesystem::directory_iterator(this->dump_dir)) {
             std::string f_name = dir_entry.path().string();
