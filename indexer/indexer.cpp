@@ -216,7 +216,7 @@ namespace indexer {
 
         // Insert the term into the term-document matrix
         sqlite3_prepare_v2(db_, 
-            "INSERT INTO term_document_matrix (term_id, document_id, frequency, tf_idf) "
+            "INSERT OR IGNORE INTO term_document_matrix (term_id, document_id, frequency, tf_idf) "
             "VALUES (?, ?, ?, ?);", 
             -1, &stmt, nullptr);
         sqlite3_bind_int64(stmt, 1, term_id);
@@ -401,65 +401,75 @@ namespace indexer {
         update_idf();
     }
 
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Helper function to tokenize query ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+    auto Indexer::tokenize_query(const std::string& query) -> std::vector<std::string> {
+        std::vector<std::string> terms;
+        std::stringstream ss(query);
+        std::string term;
+        
+        while (ss >> term) 
+            terms.push_back(term);
+
+        return terms;
+    }
+
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Basic Search Function to test my stuff ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+    auto Indexer::search(const std::string& query) -> std::vector<std::pair<std::string, double>> {
+        std::vector<std::pair<std::string, double>> final_results;
+        std::unordered_map<std::string, double> document_scores;
+        
+        std::vector<std::string> terms = tokenize_query(query);
 
-    auto Indexer::search(const std::string& query_term) -> std::vector<std::pair<std::string, double>>{
-        std::vector<std::pair<std::string, double>> results; // Vector to store document name and TF-IDF score
-
-        sqlite3_stmt* stmt;
-
-        // Prepare the SQL query to get TF-IDF scores for the given term and document names
         const char* search_query = R"(
             SELECT d.document_name, td.tf_idf
             FROM term_document_matrix td
             JOIN documents d ON td.document_id = d.document_id
             WHERE td.term_id = (SELECT term_id FROM terms WHERE term = ?)
-            ORDER BY td.tf_idf DESC
         )";
 
-        // Prepare the statement
-        if (sqlite3_prepare_v2(db_, search_query, -1, &stmt, nullptr) != SQLITE_OK) {
-            std::cerr << "Failed to prepare statement: " << sqlite3_errmsg(db_) << std::endl;
-            return results;
-        }
+        for (const auto& query_term : terms) {
+            sqlite3_stmt* stmt;
 
-        // Bind the query term to the statement
-        if (sqlite3_bind_text(stmt, 1, query_term.c_str(), -1, SQLITE_TRANSIENT) != SQLITE_OK) {
-            std::cerr << "Failed to bind query term: " << sqlite3_errmsg(db_) << std::endl;
+            if (sqlite3_prepare_v2(db_, search_query, -1, &stmt, nullptr) != SQLITE_OK) {
+                std::cerr << "Failed to prepare statement: " << sqlite3_errmsg(db_) << std::endl;
+                continue;  // Skip this term and continue with the next one
+            }
+
+            if (sqlite3_bind_text(stmt, 1, query_term.c_str(), -1, SQLITE_TRANSIENT) != SQLITE_OK) {
+                std::cerr << "Failed to bind query term: " << sqlite3_errmsg(db_) << std::endl;
+                sqlite3_finalize(stmt);
+                continue;  // Skip this term and continue with the next one
+            }
+
+            while (sqlite3_step(stmt) == SQLITE_ROW) {
+                std::string document_name(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0)));
+                double tf_idf = sqlite3_column_double(stmt, 1);
+                document_scores[document_name] += tf_idf;
+            }
+
             sqlite3_finalize(stmt);
-            return results;
         }
 
-        // Execute the query and process results
-        while (sqlite3_step(stmt) == SQLITE_ROW) {
-            std::string document_name(reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0)));
-            double tf_idf = sqlite3_column_double(stmt, 1);
-
-            // Store the result
-            results.emplace_back(document_name, tf_idf);
+        for (const auto& entry : document_scores) {
+            final_results.emplace_back(entry.first, entry.second);
         }
 
-        // Finalize the statement
-        sqlite3_finalize(stmt);
+        std::sort(final_results.begin(), final_results.end(), 
+                [](const auto& a, const auto& b) { return a.second > b.second; });
 
-        return results;
+        return final_results;
     }
-
 }
-
-
 
 int main() {
     indexer::Indexer idxr;
     idxr.directory_spider();
     std::cout << "============SEARCH==========" << std::endl;
-    for (;;) {
-        std::string query {};
-        std::cout << "Enter search term: ";
-        std::cin >> query;
-        auto results = idxr.search(query);
-        for (const auto& result : results)
-            std::cout << result.first << " : " << result.second << std::endl; 
-        std::cout << "============================" << std::endl << std::endl;
-    }
+    std::string query {};
+    std::cout << "Enter search term: ";
+    std::cin >> query;
+    auto results = idxr.search(query);
+    for (const auto& result : results)
+        std::cout << result.first << " : " << result.second << std::endl; 
+    std::cout << "============================" << std::endl << std::endl;
 }

@@ -20,13 +20,6 @@
 namespace fs = std::filesystem;
 
 namespace indexer {
-
-    struct CompareSize {
-        bool operator()(const std::pair<std::string, long long>& a, const std::pair<std::string, long long>& b) {
-            return a.second < b.second;
-        }
-    };
-
     class Indexer {
     public:
         Indexer(std::string dump_dir  = "../raw_dump", std::string index_file  = "./index.csv") : dump_dir(dump_dir), index_file(index_file) {
@@ -46,12 +39,10 @@ namespace indexer {
         std::vector<std::pair<std::string, double>> search(const std::string& query_term);
 
     private:
-        sqlite3* db_; // DB instance
+        sqlite3* db_; 
         std::string dump_dir {};
         std::string index_file {};
         std::mutex file_mutex;
-        // Inverted Index; 
-        // std::unordered_map<std::string, std::priority_queue<std::pair<std::string, long long>, std::vector<std::pair<std::string, long long>>, CompareSize>> term_document_matrix;
         std::unordered_map<std::string, std::queue<std::pair<std::string, long long>>> term_document_matrix;
         std::unordered_set<std::string> indexed_documents;
         void create_tables();
@@ -65,6 +56,7 @@ namespace indexer {
         void compute_tf_idf();
         void update_idf();
         bool delete_file(const std::string& file_name);
+        std::vector<std::string> tokenize_query(const std::string& query);
     };
 
 }
