@@ -103,6 +103,7 @@ namespace indexer {
             return false;
         }
     }
+
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Helper function to execute SQL queries ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
     auto Indexer::execute_sql(const char* query) -> void {
         char* errmsg = nullptr;
@@ -192,8 +193,6 @@ namespace indexer {
         return term_id;
     }
 
-
-
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ insert document in db if it doesnt exist and return the term id ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
     auto Indexer::get_or_insert_document(const std::string& document) -> long long {
         sqlite3_stmt* stmt;
@@ -210,6 +209,7 @@ namespace indexer {
 
         return doc_id;
     }
+
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ insert TDFM in db ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
     auto Indexer::insert_term_document_matrix(long long term_id, long long doc_id, long long freq) -> void {
         sqlite3_stmt* stmt;
@@ -226,7 +226,6 @@ namespace indexer {
         sqlite3_step(stmt);
         sqlite3_finalize(stmt);
     }
-
 
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ update tf-idf for all terms ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     auto Indexer::update_idf() -> void {
@@ -301,8 +300,6 @@ namespace indexer {
         sqlite3_finalize(stmt);
     }
 
-
-
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ insert in memory term document matrix to persistant store ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
     auto Indexer::transform_to_persist() -> void {
         sqlite3_exec(db_, "BEGIN TRANSACTION;", nullptr, nullptr, nullptr);
@@ -361,7 +358,6 @@ namespace indexer {
         }
     }
 
-
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ parse document ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
     void Indexer::process_file(const std::string& f_name) {
         if (f_name.find(".gitkeep") != std::string::npos)
@@ -387,7 +383,6 @@ namespace indexer {
                 std::cerr << "Failed to update total_documents: " << sqlite3_errmsg(db_) << std::endl;
             }
             sqlite3_finalize(stmt);
-
         }
     }
 
@@ -467,7 +462,7 @@ int main() {
     std::cout << "============SEARCH==========" << std::endl;
     std::string query {};
     std::cout << "Enter search term: ";
-    std::cin >> query;
+    std::getline(std::cin, query);
     auto results = idxr.search(query);
     for (const auto& result : results)
         std::cout << result.first << " : " << result.second << std::endl; 
