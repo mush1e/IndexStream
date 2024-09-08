@@ -45,18 +45,18 @@ namespace indexer {
         std::mutex file_mutex;
         std::unordered_map<std::string, std::queue<std::pair<std::string, long long>>> term_document_matrix;
         std::unordered_set<std::string> indexed_documents;
+        std::vector<std::string> tokenize_query(const std::string& query);
         void create_tables();
         void execute_sql(const char* query);
         void process_file(const std::string& f_name);
         void print_term_document_matrix() const;
-        long long get_or_insert_term(const std::string& term);
-        long long get_or_insert_document(const std::string& document);  
         void insert_term_document_matrix(long long term_id, long long doc_id, long long frequency);
         void transform_to_persist();
         void compute_tf_idf();
         void update_idf();
         bool delete_file(const std::string& file_name);
-        std::vector<std::string> tokenize_query(const std::string& query);
+        long long get_or_insert_term(const std::string& term);
+        long long get_or_insert_document(const std::string& document);  
     };
 
 }
