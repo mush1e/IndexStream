@@ -43,7 +43,7 @@ namespace index_stream {
             }
 
             this->thread_pool.enqueue([client_socket] {
-                // handle_client(client_socket);
+                handle_client(client_socket);
             });
         }
 
