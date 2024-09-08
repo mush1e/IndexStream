@@ -23,7 +23,6 @@ namespace index_stream {
 
     // Helper functions
     std::string trim(const std::string& str);
-    std::string url_decode(const std::string& str);
 
 }
 

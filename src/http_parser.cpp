@@ -6,33 +6,6 @@ namespace index_stream {
     const size_t BUFFER_SIZE = 4016;
 
 
-    // ~~~~~~~~~~~~~~~~~~~~~~~ Helper Function to decode from URL encoding to plain strings ~~~~~~~~~~~~~~~~~~~~~~~
-    std::string url_decode(const std::string& str) {
-        int i = 0;
-        std::stringstream decoded;
-
-        while (i < str.length()) {
-            if (str[i] == '%') {
-                if (i + 2 < str.length()) {
-                    int hexValue;
-                    std::istringstream(str.substr(i + 1, 2)) >> std::hex >> hexValue;
-                    decoded << static_cast<char>(hexValue);
-                    i += 3;
-                } else {
-                    decoded << '%';
-                    i++;
-                }
-            } else if (str[i] == '+') {
-                decoded << ' ';
-                i++;
-            } else {
-                decoded << str[i];
-                i++;
-            }
-        }
-        return decoded.str();
-    }
-
     // ~~~~~~~~~~~~~~~~~~~~~~~ Helper Function to trim white spaces from strings ~~~~~~~~~~~~~~~~~~~~~~~
     std::string trim(const std::string& str) {
         auto start = str.find_first_not_of(" \t\n\r\f\v");
@@ -186,7 +159,7 @@ namespace index_stream {
                 return;
             }
         }
-        // handle_request(request, client_socket);
+        handle_request(request, client_socket);
         close(client_socket);
     }
 }
