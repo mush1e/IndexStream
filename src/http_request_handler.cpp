@@ -8,5 +8,4 @@ namespace index_stream {
             if (req.URI == "/")     handle_get_home(req, client_socket);
         }
     }
-
 }

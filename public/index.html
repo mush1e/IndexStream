@@ -19,24 +19,76 @@
             background-color: #212529;
             color: #f8f9fa;
         }
+        /* Button styles for light and dark modes */
+        body.light-mode #theme-toggle {
+            background-color: #212529;
+            color: #f8f9fa;
+            border-color: #212529;
+        }
+        body.dark-mode #theme-toggle {
+            background-color: #f8f9fa;
+            color: #212529;
+            border-color: #f8f9fa;
+        }
+        /* Search button styles for light and dark modes */
+        body.light-mode #search-button {
+            background-color: #212529;
+            color: #f8f9fa;
+            border-color: #212529;
+            transition: background-color 0.3s, color 0.3s, transform 0.3s;
+        }
+        body.dark-mode #search-button {
+            background-color: #f8f9fa;
+            color: #212529;
+            border-color: #f8f9fa;
+            transition: background-color 0.3s, color 0.3s, transform 0.3s;
+        }
+
+        /* Hover animations */
+        body.light-mode #search-button:hover {
+            background-color: #f8f9fa;
+            color: #212529;
+            transform: scale(1.05);
+        }
+        body.dark-mode #search-button:hover {
+            background-color: #212529;
+            color: #f8f9fa;
+            transform: scale(1.05);
+        }
+
+        /* Styling adjustments */
+        small {
+            margin-top: -10px; /* Pull small text closer to the heading */
+            display: block;
+        }
+        .form-container {
+            max-width: 600px; /* Set a maximum width for the search form */
+            margin: 30px auto 0; /* Adjust the margin to increase the gap between small text and search bar */
+        }
+        .input-group {
+            max-width: 600px; /* Reduce the width of the search bar */
+            margin: 0 auto; /* Center the search bar */
+        }
     </style>
 </head>
 <body class="dark-mode">
     <!-- Theme Toggle Button -->
     <div class="container text-center mt-5">
-        <button id="theme-toggle" class="btn btn-outline-light">Switch to Light Theme</button>
+        <button id="theme-toggle" class="btn">Switch to Light Theme</button>
     </div>
 
     <!-- Search Bar -->
-    <div class="container text-center mt-5">
+    <div class="container text-center mt-4">
         <h1>IndexStream</h1>
         <small>Scuffed search engine written in C++</small>
-        <form hx-post="/search" hx-target="#search-results">
-            <div class="input-group mb-3">
-                <input type="text" class="form-control" placeholder="Search..." aria-label="Search" aria-describedby="search-button">
-                <button class="btn btn-outline-light" type="submit" id="search-button">Search</button>
-            </div>
-        </form>
+        <div class="form-container">
+            <form hx-post="/search" hx-target="#search-results">
+                <div class="input-group mb-3">
+                    <input type="text" class="form-control" placeholder="Search..." aria-label="Search" aria-describedby="search-button">
+                    <button class="btn" type="submit" id="search-button">Search</button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <!-- Search Results Section -->
@@ -52,6 +104,7 @@
     <script>
         const themeToggleBtn = document.getElementById('theme-toggle');
         const body = document.body;
+        const searchButton = document.getElementById('search-button');
 
         themeToggleBtn.addEventListener('click', () => {
             if (body.classList.contains('dark-mode')) {
