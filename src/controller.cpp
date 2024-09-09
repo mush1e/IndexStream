@@ -117,4 +117,10 @@ namespace index_stream {
     auto handle_get_home(HTTPRequest& req, int client_socket) -> void {
         serveStaticFile("../public/index.html", client_socket);
     }
+
+    // ~~~~~~~~~~~~~~~~~~~~~~~ GET controller for home route ~~~~~~~~~~~~~~~~~~~~~~~
+    auto handle_post_search(HTTPRequest& req, int client_socket) -> void {
+        serveStaticFile("../public/under_construction.html", client_socket);
+    }
+
 }

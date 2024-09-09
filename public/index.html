@@ -82,7 +82,7 @@
         <h1>IndexStream</h1>
         <small>Scuffed search engine written in C++</small>
         <div class="form-container">
-            <form hx-post="/search" hx-target="#search-results">
+            <form action="/search" method="GET">
                 <div class="input-group mb-3">
                     <input type="text" class="form-control" placeholder="Search..." aria-label="Search" aria-describedby="search-button">
                     <button class="btn" type="submit" id="search-button">Search</button>
