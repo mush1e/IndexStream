@@ -22,7 +22,7 @@ namespace fs = std::filesystem;
 namespace indexer {
     class Indexer {
     public:
-        Indexer(std::string dump_dir  = "../raw_dump", std::string index_file  = "./index.csv") : dump_dir(dump_dir), index_file(index_file) {
+        Indexer(std::string dump_dir  = "../raw_dump", std::string index_file  = "./index.csv") : dump_dir(dump_dir) {
             std::cout << "Initializing DB....\n";
             if (sqlite3_open("../db/document_store.db", &db_) != SQLITE_OK) {
                 std::cerr << "Cannot open database: " << sqlite3_errmsg(db_) << std::endl;
@@ -41,7 +41,6 @@ namespace indexer {
     private:
         sqlite3* db_; 
         std::string dump_dir {};
-        std::string index_file {};
         std::mutex file_mutex;
         std::unordered_map<std::string, std::queue<std::pair<std::string, long long>>> term_document_matrix;
         std::unordered_set<std::string> indexed_documents;

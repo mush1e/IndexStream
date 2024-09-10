@@ -12,23 +12,44 @@
             transition: background-color 0.3s, color 0.3s;
         }
         body.light-mode {
-            background-color: #f5f5dc; /* Creme color */
+            background-color: #f8f9fa;
             color: #212529;
         }
         body.dark-mode {
             background-color: #212529;
             color: #f8f9fa;
         }
+        /* Button styles for light and dark modes */
+        body.light-mode #theme-toggle {
+            background-color: #212529;
+            color: #f8f9fa;
+            border-color: #212529;
+        }
+        body.dark-mode #theme-toggle {
+            background-color: #f8f9fa;
+            color: #212529;
+            border-color: #f8f9fa;
+        }
+        /* Construction icon styling */
         .construction-icon {
             font-size: 80px;
             margin-bottom: 20px;
+        }
+        /* Responsive adjustments */
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        /* Button hover effect */
+        #theme-toggle:hover {
+            transform: scale(1.05);
         }
     </style>
 </head>
 <body class="dark-mode text-center">
     <!-- Theme Toggle Button -->
     <div class="container mt-5">
-        <button id="theme-toggle" class="btn btn-outline-light">Switch to Light Theme</button>
+        <button id="theme-toggle" class="btn">Switch to Light Theme</button>
     </div>
 
     <!-- Under Construction Content -->

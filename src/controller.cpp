@@ -113,13 +113,38 @@ namespace index_stream {
             send_not_found_request(client_socket);
     }
 
+    // ~~~~~~~~~~~~~~~~~~~~~~~ Helper to parse query parameters ~~~~~~~~~~~~~~~~~~~~~~~
+    auto parse_query_params(const std::string& query, std::unordered_map<std::string, std::string>& query_params) -> void {
+         
+        size_t start = query.find('?') + 1;
+        while (start < query.length()) {
+            size_t end = query.find('&', start);  // Find the next '&'
+            std::string pair = (end == std::string::npos) ? query.substr(start) : query.substr(start, end - start);
+            
+            size_t delimiterPos = pair.find('=');
+            if (delimiterPos != std::string::npos) {
+                std::string key = pair.substr(0, delimiterPos);
+                std::string value = pair.substr(delimiterPos + 1);
+                query_params[key] = value;  // Store key-value pair
+            }
+            start = (end == std::string::npos) ? query.length() : end + 1;
+        }
+    } 
+
     // ~~~~~~~~~~~~~~~~~~~~~~~ GET controller for home route ~~~~~~~~~~~~~~~~~~~~~~~
     auto handle_get_home(HTTPRequest& req, int client_socket) -> void {
         serveStaticFile("../public/index.html", client_socket);
     }
 
     // ~~~~~~~~~~~~~~~~~~~~~~~ GET controller for home route ~~~~~~~~~~~~~~~~~~~~~~~
-    auto handle_post_search(HTTPRequest& req, int client_socket) -> void {
+    auto handle_get_search(HTTPRequest& req, int client_socket) -> void {
+        HTTPResponse response {};
+        std::string http_response {};
+        std::unordered_map<std::string, std::string> query_params;
+        parse_query_params(req.URI, query_params);
+        for (const auto& q : query_params)
+            std::cout << q.first << " - " << q.second << std::endl;
+
         serveStaticFile("../public/under_construction.html", client_socket);
     }
 

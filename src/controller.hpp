@@ -8,6 +8,7 @@
 #include <ctime>
 
 #include "http.hpp"
+#include "indexer.hpp"
 
 #ifndef RFSS_CONTROLLER_HPP
 #define RFSS_CONTRILLER_HPP
@@ -22,7 +23,7 @@ namespace index_stream {
     std::string url_decode(const std::string& str);
     // controllers
     void handle_get_home(HTTPRequest& req, int client_socket);
-    void handle_post_search(HTTPRequest& req, int client_socket);
+    void handle_get_search(HTTPRequest& req, int client_socket);
 }
 
 #endif

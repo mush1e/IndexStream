@@ -23,7 +23,7 @@ namespace index_stream {
 
     // Helper functions
     std::string trim(const std::string& str);
-
+    void parse_query_params(const std::string& query, std::unordered_map<std::string, std::string>& query_params);
 }
 
 #endif
