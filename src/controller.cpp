@@ -139,12 +139,22 @@ namespace index_stream {
     // ~~~~~~~~~~~~~~~~~~~~~~~ GET controller for home route ~~~~~~~~~~~~~~~~~~~~~~~
     auto handle_get_search(HTTPRequest& req, int client_socket) -> void {
         HTTPResponse response {};
-        std::string http_response {};
+        std::string http_response {}, query {};
         std::unordered_map<std::string, std::string> query_params;
-        parse_query_params(req.URI, query_params);
-        for (const auto& q : query_params)
-            std::cout << q.first << " - " << q.second << std::endl;
 
+        indexer::Indexer idxr {};
+
+        parse_query_params(req.URI, query_params);
+        query = url_decode(query_params["query"]);
+
+        auto result_list = idxr.search(query);
+
+
+        std::cout << "========SEARCH RESULT========\n";
+        for (const auto& [key, val] : result_list)
+            std::cout << key << " - " << val << std::endl;
+
+        std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\n\n\n\n\n";
         serveStaticFile("../public/under_construction.html", client_socket);
     }
 
