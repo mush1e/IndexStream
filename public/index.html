@@ -69,20 +69,51 @@
             max-width: 600px; /* Reduce the width of the search bar */
             margin: 0 auto; /* Center the search bar */
         }
+
+        /* Navbar styling */
+        .navbar {
+            display: none;
+            background-color: #343a40;
+            padding: 0.5rem 1rem;
+            position: sticky;
+            top: 0;
+            width: 100%;
+            z-index: 9999;
+        }
+        .navbar.show {
+            display: flex;
+            justify-content: space-between;
+        }
+        .navbar-dark .navbar-nav .nav-link {
+            color: #f8f9fa;
+        }
+
+        /* Transition effect for the form */
+        .search-transition {
+            transition: all 0.3s ease;
+        }
+
     </style>
 </head>
 <body class="dark-mode">
-    <!-- Theme Toggle Button -->
-    <div class="container text-center mt-5">
-        <button id="theme-toggle" class="btn">Switch to Light Theme</button>
-    </div>
+    <!-- Navbar with Search Bar -->
+    <nav class="navbar navbar-dark" id="navbar">
+        <a class="navbar-brand" href="#">IndexStream</a>
+        <form action="/search" method="GET" hx-get="/search" hx-target="#search-results" hx-trigger="submit">
+            <div class="input-group mb-3">
+                <input type="text" name="query" class="form-control" placeholder="Search..." aria-label="Search" aria-describedby="search-button" required>
+                <button class="btn" type="submit" id="search-button">Search</button>
+            </div>
+        </form>
+        <button id="theme-toggle" class="btn btn-light">Switch to Light Theme</button>
+    </nav>
 
-    <!-- Search Bar -->
-    <div class="container text-center mt-4">
+    <!-- Main Search Bar (Initial View) -->
+    <div class="container text-center mt-4" id="main-search">
         <h1>IndexStream</h1>
         <small>Scuffed search engine written in C++</small>
         <div class="form-container">
-            <form action="/search" method="GET">
+            <form action="/search" method="GET" hx-get="/search" hx-target="#search-results" hx-trigger="submit">
                 <div class="input-group mb-3">
                     <input type="text" name="query" class="form-control" placeholder="Search..." aria-label="Search" aria-describedby="search-button" required>
                     <button class="btn" type="submit" id="search-button">Search</button>
@@ -104,7 +135,8 @@
     <script>
         const themeToggleBtn = document.getElementById('theme-toggle');
         const body = document.body;
-        const searchButton = document.getElementById('search-button');
+        const navbar = document.getElementById('navbar');
+        const mainSearch = document.getElementById('main-search');
 
         themeToggleBtn.addEventListener('click', () => {
             if (body.classList.contains('dark-mode')) {
@@ -116,6 +148,12 @@
                 body.classList.add('dark-mode');
                 themeToggleBtn.textContent = 'Switch to Light Theme';
             }
+        });
+
+        document.body.addEventListener('htmx:afterRequest', () => {
+            // Show the navbar and hide the main search after results are loaded
+            navbar.classList.add('show');
+            mainSearch.style.display = 'none';
         });
     </script>
 </body>

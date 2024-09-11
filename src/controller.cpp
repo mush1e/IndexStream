@@ -144,18 +144,37 @@ namespace index_stream {
 
         indexer::Indexer idxr {};
 
+        // Parse the query parameter from the URI
         parse_query_params(req.URI, query_params);
         query = url_decode(query_params["query"]);
 
+        // Perform the search
         auto result_list = idxr.search(query);
 
+        // Build HTML response dynamically
+        std::stringstream html;
+        html << "<div class='container mt-5'>";
 
-        std::cout << "========SEARCH RESULT========\n";
-        for (const auto& [key, val] : result_list)
-            std::cout << key << " - " << val << std::endl;
+        if (result_list.empty()) {
+            html << "<h4>No results found for \"" << query << "\"</h4>";
+        } else {
+            html << "<h4>Search results for \"" << query << "\":</h4>";
+            html << "<ul class='list-group'>";
+            for (const auto& [key, val] : result_list) {
+                html << "<li class='list-group-item'>";
+                html << "<a href='" << val << "'>" << key << "</a>";
+                html << "</li>";
+            }
+            html << "</ul>";
+        }
+        html << "</div>";
 
-        std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n\n\n\n\n\n";
-        serveStaticFile("../public/under_construction.html", client_socket);
+        response.status_code = 200;
+        response.status_message = "OK";
+        response.body = html.str();  
+        http_response = response.generate_response();
+        send(client_socket, http_response.c_str(), http_response.length(), 0);
     }
+
 
 }
