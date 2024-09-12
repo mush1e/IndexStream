@@ -22,10 +22,10 @@ namespace fs = std::filesystem;
 namespace indexer {
     class Indexer {
     public:
+        bool cpy {};
         static Indexer& get_instance();
         Indexer(const Indexer&) = delete;
         Indexer& operator=(const Indexer&) = delete;
-
         void document_parser(const std::string& file_name, std::string& document);
         void directory_spider();
         void index_updater(std::string& document, std::string& url);
@@ -52,7 +52,13 @@ namespace indexer {
         long long get_or_insert_document(const std::string& document);  
 
 
-        Indexer(std::string dump_dir  = "../raw_dump", std::string index_file  = "./index.csv") : dump_dir(dump_dir) {
+        // So I and simultaneously read from old db file while new db file is being written to
+        void copy_database_file();
+        void replace_database_file();
+
+        Indexer() {
+            dump_dir = "../raw_dump";
+            std::string index_file = "./index.csv";
             std::cout << "Initializing DB....\n";
             if (sqlite3_open("../db/document_store.db", &db_) != SQLITE_OK) {
                 std::cerr << "Cannot open database: " << sqlite3_errmsg(db_) << std::endl;
@@ -60,7 +66,8 @@ namespace indexer {
             }
             create_tables();
             std::cout << "Indexer Initiated...." << std::endl;
-        };
+        }
+
 
     };
 

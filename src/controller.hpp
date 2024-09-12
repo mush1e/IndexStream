@@ -21,6 +21,10 @@ namespace index_stream {
     std::ostream& operator<<(std::ostream& os, const HTTPRequest& req);
     std::string get_form_field(const std::string& body, const std::string& field_name);
     std::string url_decode(const std::string& str);
+    void update_db();
+
+
+
     // controllers
     void handle_get_home(HTTPRequest& req, int client_socket);
     void handle_get_search(HTTPRequest& req, int client_socket);

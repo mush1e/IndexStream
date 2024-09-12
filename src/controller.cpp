@@ -131,6 +131,11 @@ namespace index_stream {
         }
     } 
 
+    void update_db() {
+        
+    }
+
+
     // ~~~~~~~~~~~~~~~~~~~~~~~ GET controller for home route ~~~~~~~~~~~~~~~~~~~~~~~
     auto handle_get_home(HTTPRequest& req, int client_socket) -> void {
         serveStaticFile("../public/index.html", client_socket);
@@ -143,6 +148,11 @@ namespace index_stream {
     std::unordered_map<std::string, std::string> query_params;
 
     auto& idxr = indexer::Indexer::get_instance();
+
+
+    // create new thread to update_db if applicable and detach the thread
+    std::thread t(update_db);
+    t.detach();
 
     // Parse the query parameter from the URI
     parse_query_params(req.URI, query_params);
