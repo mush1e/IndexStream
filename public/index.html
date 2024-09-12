@@ -20,16 +20,19 @@
             color: #f8f9fa;
         }
         /* Button styles for light and dark modes */
-        body.light-mode #theme-toggle {
+        body.light-mode #theme-toggle,
+        body.light-mode #theme-toggle-initial {
             background-color: #212529;
             color: #f8f9fa;
             border-color: #212529;
         }
-        body.dark-mode #theme-toggle {
+        body.dark-mode #theme-toggle,
+        body.dark-mode #theme-toggle-initial {
             background-color: #f8f9fa;
             color: #212529;
             border-color: #f8f9fa;
         }
+
         /* Search button styles for light and dark modes */
         body.light-mode #search-button {
             background-color: #212529;
@@ -120,6 +123,8 @@
                 </div>
             </form>            
         </div>
+        <!-- Add Theme Toggle Button in Initial View -->
+        <button id="theme-toggle-initial" class="btn btn-light mt-3">Switch to Light Theme</button>
     </div>
 
     <!-- Search Results Section -->
@@ -134,21 +139,41 @@
     <!-- Theme Switching Logic -->
     <script>
         const themeToggleBtn = document.getElementById('theme-toggle');
+        const themeToggleBtnInitial = document.getElementById('theme-toggle-initial');
         const body = document.body;
         const navbar = document.getElementById('navbar');
         const mainSearch = document.getElementById('main-search');
 
-        themeToggleBtn.addEventListener('click', () => {
+        // Function to toggle theme
+        function toggleTheme() {
             if (body.classList.contains('dark-mode')) {
                 body.classList.remove('dark-mode');
                 body.classList.add('light-mode');
                 themeToggleBtn.textContent = 'Switch to Dark Theme';
+                themeToggleBtnInitial.textContent = 'Switch to Dark Theme';
             } else {
                 body.classList.remove('light-mode');
                 body.classList.add('dark-mode');
                 themeToggleBtn.textContent = 'Switch to Light Theme';
+                themeToggleBtnInitial.textContent = 'Switch to Light Theme';
             }
-        });
+        }
+
+        // Check user's preferred theme on load
+        const prefersDarkScheme = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        if (prefersDarkScheme) {
+            body.classList.add('dark-mode');
+            themeToggleBtn.textContent = 'Switch to Light Theme';
+            themeToggleBtnInitial.textContent = 'Switch to Light Theme';
+        } else {
+            body.classList.add('light-mode');
+            themeToggleBtn.textContent = 'Switch to Dark Theme';
+            themeToggleBtnInitial.textContent = 'Switch to Dark Theme';
+        }
+
+        // Add event listeners for both buttons
+        themeToggleBtn.addEventListener('click', toggleTheme);
+        themeToggleBtnInitial.addEventListener('click', toggleTheme);
 
         document.body.addEventListener('htmx:afterRequest', () => {
             // Show the navbar and hide the main search after results are loaded
