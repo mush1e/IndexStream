@@ -162,7 +162,7 @@ namespace index_stream {
             html << "<ul class='list-group'>";
             for (const auto& [key, val] : result_list) {
                 html << "<li class='list-group-item'>";
-                html << "<a href='" << val << "'>" << key << "</a>";
+                html << "<a href='" << key << "'>" << key << "</a>";
                 html << "</li>";
             }
             html << "</ul>";
