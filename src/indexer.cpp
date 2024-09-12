@@ -2,6 +2,12 @@
 
 namespace indexer {
 
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Singleton static instance ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+    Indexer& Indexer::get_instance() {
+        static Indexer instance{};
+        return instance;
+    }
+
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Extract URL from first line of file and remove delim ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
     auto Indexer::url_extractor(std::string file_name) -> std::string {
         std::string line;

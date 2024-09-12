@@ -22,15 +22,9 @@ namespace fs = std::filesystem;
 namespace indexer {
     class Indexer {
     public:
-        Indexer(std::string dump_dir  = "../raw_dump", std::string index_file  = "./index.csv") : dump_dir(dump_dir) {
-            std::cout << "Initializing DB....\n";
-            if (sqlite3_open("../db/document_store.db", &db_) != SQLITE_OK) {
-                std::cerr << "Cannot open database: " << sqlite3_errmsg(db_) << std::endl;
-                exit(1);
-            }
-            create_tables();
-            std::cout << "Indexer Initiated...." << std::endl;
-        };
+        static Indexer& get_instance();
+        Indexer(const Indexer&) = delete;
+        Indexer& operator=(const Indexer&) = delete;
 
         void document_parser(const std::string& file_name, std::string& document);
         void directory_spider();
@@ -56,6 +50,18 @@ namespace indexer {
         bool delete_file(const std::string& file_name);
         long long get_or_insert_term(const std::string& term);
         long long get_or_insert_document(const std::string& document);  
+
+
+        Indexer(std::string dump_dir  = "../raw_dump", std::string index_file  = "./index.csv") : dump_dir(dump_dir) {
+            std::cout << "Initializing DB....\n";
+            if (sqlite3_open("../db/document_store.db", &db_) != SQLITE_OK) {
+                std::cerr << "Cannot open database: " << sqlite3_errmsg(db_) << std::endl;
+                exit(1);
+            }
+            create_tables();
+            std::cout << "Indexer Initiated...." << std::endl;
+        };
+
     };
 
 }

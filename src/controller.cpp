@@ -138,43 +138,51 @@ namespace index_stream {
 
     // ~~~~~~~~~~~~~~~~~~~~~~~ GET controller for home route ~~~~~~~~~~~~~~~~~~~~~~~
     auto handle_get_search(HTTPRequest& req, int client_socket) -> void {
-        HTTPResponse response {};
-        std::string http_response {}, query {};
-        std::unordered_map<std::string, std::string> query_params;
+    HTTPResponse response {};
+    std::string http_response {}, query {};
+    std::unordered_map<std::string, std::string> query_params;
 
-        indexer::Indexer idxr {};
+    auto& idxr = indexer::Indexer::get_instance();
 
-        // Parse the query parameter from the URI
-        parse_query_params(req.URI, query_params);
-        query = url_decode(query_params["query"]);
+    // Parse the query parameter from the URI
+    parse_query_params(req.URI, query_params);
+    query = url_decode(query_params["query"]);
 
-        // Perform the search
-        auto result_list = idxr.search(query);
+    // Perform the search
+    auto result_list = idxr.search(query);
 
-        // Build HTML response dynamically
-        std::stringstream html;
-        html << "<div class='container mt-5'>";
-
-        if (result_list.empty()) {
-            html << "<h4>No results found for \"" << query << "\"</h4>";
-        } else {
-            html << "<h4>Search results for \"" << query << "\":</h4>";
-            html << "<ul class='list-group'>";
-            for (const auto& [key, val] : result_list) {
-                html << "<li class='list-group-item'>";
-                html << "<a href='" << key << "'>" << key << "</a>";
-                html << "</li>";
-            }
-            html << "</ul>";
+    // Build HTML response dynamically
+    std::stringstream html;
+    html << "<div class='container mt-5'>";
+    
+    if (result_list.empty()) {
+        html << "<h4 class='text-center text-muted'>No results found for \"" << query << "\"</h4>";
+    } else {
+        html << "<h4 class='mb-4'>Search results for \"" << query << "\":</h4>";
+        html << "<div class='list-group'>";  // Using list-group for a clean layout
+        for (const auto& [key, val] : result_list) {
+            html << "<a href='" << key << "' class='list-group-item list-group-item-action'>";
+            html << "<h5 class='mb-1'>" << key << "</h5>";  // Result title
+            html << "<p class='mb-1 text-muted'>Link: " << key << "</p>";  // URL preview
+            html << "</a>";
         }
         html << "</div>";
-
-        response.status_code = 200;
-        response.status_message = "OK";
-        response.body = html.str();  
-        http_response = response.generate_response();
-        send(client_socket, http_response.c_str(), http_response.length(), 0);
     }
+    
+    html << "</div>";
+
+    // Set up HTTP response
+    response.status_code = 200;
+    response.status_message = "OK";
+    response.body = html.str();  // Send the HTML content as the body of the response
+
+    // Generate the full HTTP response
+    http_response = response.generate_response();
+    
+    // Send the response to the client
+    send(client_socket, http_response.c_str(), http_response.length(), 0);
+}
+
 
 
 }
