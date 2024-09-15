@@ -424,7 +424,6 @@ namespace indexer {
         std::ifstream read_db(src, std::ios::binary);
         std::ofstream write_db(dest, std::ios::binary);
 
-        set_safe_copy(true);
 
         if (!read_db || !write_db)
             std::cerr << "Error accessing file" << std::endl;
@@ -440,6 +439,9 @@ namespace indexer {
 
         directory_spider();
 
+        // finish serving all current requests
+        set_safe_copy(true);
+
         if (std::remove(src.c_str()) == 0) {
             std::cout << "Original db removed" << std::endl;
             if (std::rename(dest.c_str(), src.c_str()) == 0) {
@@ -448,7 +450,7 @@ namespace indexer {
                 std::cerr << "Error renaming temporary file!" << std::endl;
             }
         }
-
+        // now can carry on with all pending requests
         set_safe_copy(false);
     }
 

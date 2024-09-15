@@ -21,6 +21,7 @@ namespace index_stream {
         int port{};
         sockaddr_in server_address {};
         ThreadPool thread_pool{4};
+        void recurring_db_update();
 
     public:
         HTTP_Server(int port);

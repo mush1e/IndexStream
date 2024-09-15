@@ -24,6 +24,24 @@ namespace index_stream {
         close(this->server_socket);
     }
 
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ check if new webpages scraped and update db ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+    auto HTTP_Server::recurring_db_update() -> void {
+        for(;;) {
+            int file_count {};
+            auto& idxr = indexer::Indexer::get_instance();
+
+            for (const auto& entry : std::filesystem::directory_iterator("../raw_dump")) {
+                if (std::filesystem::is_regular_file(entry.status())) 
+                    file_count++;
+                if (file_count > 1) {
+                    idxr.update_db();
+                    break;
+                }
+            }
+            std::this_thread::sleep_for(std::chrono::minutes(60));
+        }
+    }
+
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ start listening for connections and handle client when connected ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
     auto HTTP_Server::start() -> void {
         if(listen(server_socket, 10) < 0) {
@@ -32,6 +50,7 @@ namespace index_stream {
         }
 
         std::cout << "Server Started! Listening on port: " << this->port << std::endl;
+        std::thread t(recurring_db_update);
 
         for(;;) {
 
@@ -47,5 +66,7 @@ namespace index_stream {
             });
         }
 
+        if (t.joinable())
+            t.join();
     }
 }
