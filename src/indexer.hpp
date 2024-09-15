@@ -23,12 +23,15 @@ namespace indexer {
     class Indexer {
     public:
         bool cpy {};
+        std::mutex cpy_mutex;
         static Indexer& get_instance();
         Indexer(const Indexer&) = delete;
         Indexer& operator=(const Indexer&) = delete;
         void document_parser(const std::string& file_name, std::string& document);
         void directory_spider();
+        void update_db();
         void index_updater(std::string& document, std::string& url);
+        bool safe_check_cpy();
         std::string url_extractor(std::string file_name);
         std::vector<std::pair<std::string, double>> search(const std::string& query_term);
 
@@ -40,6 +43,7 @@ namespace indexer {
         std::unordered_set<std::string> indexed_documents;
         std::vector<std::string> tokenize_query(const std::string& query);
         void create_tables();
+        void set_safe_copy(bool cpy_status);
         void execute_sql(const char* query);
         void process_file(const std::string& f_name);
         void print_term_document_matrix() const;
@@ -47,6 +51,7 @@ namespace indexer {
         void transform_to_persist();
         void compute_tf_idf();
         void update_idf();
+        bool close_database();
         bool delete_file(const std::string& file_name);
         long long get_or_insert_term(const std::string& term);
         long long get_or_insert_document(const std::string& document);  

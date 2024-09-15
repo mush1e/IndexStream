@@ -215,7 +215,6 @@ namespace indexer {
 
         return doc_id;
     }
-
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ insert TDFM in db ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
     auto Indexer::insert_term_document_matrix(long long term_id, long long doc_id, long long freq) -> void {
         sqlite3_stmt* stmt;
@@ -365,7 +364,7 @@ namespace indexer {
     }
 
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ parse document ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
-    void Indexer::process_file(const std::string& f_name) {
+    auto Indexer::process_file(const std::string& f_name) -> void {
         if (f_name.find(".gitkeep") != std::string::npos)
             return;
 
@@ -393,13 +392,64 @@ namespace indexer {
     }
 
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ crawl documents in dump directory ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
-    void Indexer::directory_spider() {
+    auto Indexer::directory_spider() -> void {
         for (const auto& dir_entry : std::filesystem::directory_iterator(this->dump_dir)) {
             std::string f_name = dir_entry.path().string();
             std::cout << f_name << std::endl;
             process_file(f_name);
         }
         update_idf();
+    }
+
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ helper to safely set cpy ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+    auto Indexer::safe_check_cpy() -> bool {
+        std::lock_guard<std::mutex> lock(cpy_mutex);  // Lock the mutex for reading cpy
+        std::cout << "cpy is: " << cpy << " (checked by thread " << std::this_thread::get_id() << ")" << std::endl;
+        return cpy;
+    }
+
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ helper to safely set cpy ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+    auto Indexer::set_safe_copy(bool cpy_status) -> void {
+        std::lock_guard<std::mutex> lock(cpy_mutex);
+        cpy = cpy_status;
+        std::cout << "cpy has been safely set to true by thread " << std::this_thread::get_id() << std::endl;
+    }
+
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ insert create new write buffer db ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
+    auto Indexer::update_db() -> void {
+        std::string src = "../db/document_store.db";
+        std::string dest = "../db/temp_document_store.db";
+
+        std::cout << "Initializing write buffer db....\n";
+        std::ifstream read_db(src, std::ios::binary);
+        std::ofstream write_db(dest, std::ios::binary);
+
+        set_safe_copy(true);
+
+        if (!read_db || !write_db)
+            std::cerr << "Error accessing file" << std::endl;
+
+        write_db << read_db.rdbuf();
+        read_db.close();
+        write_db.close();
+
+        if (sqlite3_open(dest.c_str(), &db_) != SQLITE_OK) {
+            std::cerr << "Cannot open database: " << sqlite3_errmsg(db_) << std::endl;
+            exit(1);
+        }
+
+        directory_spider();
+
+        if (std::remove(src.c_str()) == 0) {
+            std::cout << "Original db removed" << std::endl;
+            if (std::rename(dest.c_str(), src.c_str()) == 0) {
+                std::cout << "Temporary file renamed to original file name." << std::endl;
+            } else {
+                std::cerr << "Error renaming temporary file!" << std::endl;
+            }
+        }
+
+        set_safe_copy(false);
     }
 
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Helper function to tokenize query ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
