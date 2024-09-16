@@ -50,7 +50,7 @@ namespace index_stream {
         }
 
         std::cout << "Server Started! Listening on port: " << this->port << std::endl;
-        std::thread t(recurring_db_update);
+        std::thread t(&HTTP_Server::recurring_db_update, this);
 
         for(;;) {
 

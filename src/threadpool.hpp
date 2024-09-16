@@ -17,11 +17,18 @@ namespace index_stream {
         std::queue<std::function<void()>> tasks;
         std::mutex queue_mutex;
         std::condition_variable condition;
+        std::condition_variable all_tasks_done_condition;
+        std::atomic<int> active_tasks;
+        bool pause;
         bool stop;
 
     public:
         ThreadPool(size_t num_threads);
         ~ThreadPool();
+
+        void pause_task_queue();
+        void resume_task_queue();
+        bool await_pending_tasks();
 
         template<typename F, typename... Args>
         auto enqueue(F&& f, Args&&... args) -> void {
@@ -34,7 +41,6 @@ namespace index_stream {
             condition.notify_one();
         }
     };
-
 }
 
 #endif
