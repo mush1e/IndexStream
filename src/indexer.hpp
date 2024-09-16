@@ -22,7 +22,7 @@ namespace fs = std::filesystem;
 namespace indexer {
     class Indexer {
     public:
-        bool cpy {};
+        bool cpy = false;
         std::mutex cpy_mutex;
         static Indexer& get_instance();
         Indexer(const Indexer&) = delete;
@@ -30,6 +30,8 @@ namespace indexer {
         void document_parser(const std::string& file_name, std::string& document);
         void directory_spider();
         void update_db();
+        void merge_db();
+        void update_idf();
         void index_updater(std::string& document, std::string& url);
         bool safe_check_cpy();
         std::string url_extractor(std::string file_name);
@@ -37,6 +39,7 @@ namespace indexer {
 
     private:
         sqlite3* db_; 
+        sqlite3* temp_db_;
         std::string dump_dir {};
         std::mutex file_mutex;
         std::unordered_map<std::string, std::queue<std::pair<std::string, long long>>> term_document_matrix;
@@ -50,7 +53,6 @@ namespace indexer {
         void insert_term_document_matrix(long long term_id, long long doc_id, long long frequency);
         void transform_to_persist();
         void compute_tf_idf();
-        void update_idf();
         bool close_database();
         bool delete_file(const std::string& file_name);
         long long get_or_insert_term(const std::string& term);

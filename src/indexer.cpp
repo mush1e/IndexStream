@@ -113,7 +113,7 @@ namespace indexer {
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ Helper function to execute SQL queries ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
     auto Indexer::execute_sql(const char* query) -> void {
         char* errmsg = nullptr;
-        if (sqlite3_exec(db_, query, nullptr, nullptr, &errmsg) != SQLITE_OK) {
+        if (sqlite3_exec(safe_check_cpy() ? temp_db_ : db_, query, nullptr, nullptr, &errmsg) != SQLITE_OK) {
             std::cerr << "SQL error: " << errmsg << std::endl;
             sqlite3_free(errmsg);
         }
@@ -175,7 +175,7 @@ namespace indexer {
         const char* init_stats_table = R"(
             INSERT INTO stats (total_documents) VALUES (0);
         )";
-        sqlite3_exec(db_, init_stats_table, nullptr, nullptr, nullptr);
+        sqlite3_exec(safe_check_cpy() ? temp_db_ : db_, init_stats_table, nullptr, nullptr, nullptr);
 
     }
 
@@ -183,13 +183,13 @@ namespace indexer {
     auto Indexer::get_or_insert_term(const std::string& term) -> long long {
         sqlite3_stmt* stmt;
         // Insert the term if it doesn't exist
-        sqlite3_prepare_v2(db_, "INSERT OR IGNORE INTO terms (term, document_count) VALUES (?, 0);", -1, &stmt, nullptr);
+        sqlite3_prepare_v2(safe_check_cpy() ? temp_db_ : db_, "INSERT OR IGNORE INTO terms (term, document_count) VALUES (?, 0);", -1, &stmt, nullptr);
         sqlite3_bind_text(stmt, 1, term.c_str(), -1, SQLITE_STATIC);
         sqlite3_step(stmt);
         sqlite3_finalize(stmt);
 
         // Select the term_id and document_count
-        sqlite3_prepare_v2(db_, "SELECT term_id, document_count FROM terms WHERE term = ?;", -1, &stmt, nullptr);
+        sqlite3_prepare_v2(safe_check_cpy() ? temp_db_ : db_, "SELECT term_id, document_count FROM terms WHERE term = ?;", -1, &stmt, nullptr);
         sqlite3_bind_text(stmt, 1, term.c_str(), -1, SQLITE_STATIC);
         sqlite3_step(stmt);
         long long term_id = sqlite3_column_int64(stmt, 0);
@@ -202,12 +202,12 @@ namespace indexer {
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ insert document in db if it doesnt exist and return the term id ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
     auto Indexer::get_or_insert_document(const std::string& document) -> long long {
         sqlite3_stmt* stmt;
-        sqlite3_prepare_v2(db_, "INSERT OR IGNORE INTO documents (document_name) VALUES (?);", -1, &stmt, nullptr);
+        sqlite3_prepare_v2(safe_check_cpy() ? temp_db_ : db_, "INSERT OR IGNORE INTO documents (document_name) VALUES (?);", -1, &stmt, nullptr);
         sqlite3_bind_text(stmt, 1, document.c_str(), -1, SQLITE_STATIC);
         sqlite3_step(stmt);
         sqlite3_finalize(stmt);
 
-        sqlite3_prepare_v2(db_, "SELECT document_id FROM documents WHERE document_name = ?;", -1, &stmt, nullptr);
+        sqlite3_prepare_v2(safe_check_cpy() ? temp_db_ : db_, "SELECT document_id FROM documents WHERE document_name = ?;", -1, &stmt, nullptr);
         sqlite3_bind_text(stmt, 1, document.c_str(), -1, SQLITE_STATIC);
         sqlite3_step(stmt);
         long long doc_id = sqlite3_column_int64(stmt, 0);
@@ -220,7 +220,7 @@ namespace indexer {
         sqlite3_stmt* stmt;
 
         // Insert the term into the term-document matrix
-        sqlite3_prepare_v2(db_, 
+        sqlite3_prepare_v2(safe_check_cpy() ? temp_db_ : db_, 
             "INSERT OR IGNORE INTO term_document_matrix (term_id, document_id, frequency, tf_idf) "
             "VALUES (?, ?, ?, ?);", 
             -1, &stmt, nullptr);
@@ -237,9 +237,9 @@ namespace indexer {
         sqlite3_stmt* stmt;
 
         // Get the total number of documents (for IDF calculation)
-        sqlite3_prepare_v2(db_, "SELECT total_documents FROM stats;", -1, &stmt, nullptr);
+        sqlite3_prepare_v2(safe_check_cpy() ? temp_db_ : db_, "SELECT total_documents FROM stats;", -1, &stmt, nullptr);
         if (sqlite3_step(stmt) != SQLITE_ROW) {
-            std::cerr << "Failed to get total_documents: " << sqlite3_errmsg(db_) << std::endl;
+            std::cerr << "Failed to get total_documents: " << sqlite3_errmsg(safe_check_cpy() ? temp_db_ : db_) << std::endl;
             sqlite3_finalize(stmt);
             return;
         }
@@ -252,8 +252,8 @@ namespace indexer {
             SELECT term_id, document_id, frequency
             FROM term_document_matrix;
         )";
-        if (sqlite3_prepare_v2(db_, select_query, -1, &stmt, nullptr) != SQLITE_OK) {
-            std::cerr << "Failed to prepare select_query: " << sqlite3_errmsg(db_) << std::endl;
+        if (sqlite3_prepare_v2(safe_check_cpy() ? temp_db_ : db_, select_query, -1, &stmt, nullptr) != SQLITE_OK) {
+            std::cerr << "Failed to prepare select_query: " << sqlite3_errmsg(safe_check_cpy() ? temp_db_ : db_) << std::endl;
             return;
         }
 
@@ -268,7 +268,7 @@ namespace indexer {
 
             // Fetch total terms for the document
             sqlite3_stmt* doc_stmt;
-            sqlite3_prepare_v2(db_, "SELECT total_terms FROM documents WHERE document_id = ?;", -1, &doc_stmt, nullptr);
+            sqlite3_prepare_v2(safe_check_cpy() ? temp_db_ : db_, "SELECT total_terms FROM documents WHERE document_id = ?;", -1, &doc_stmt, nullptr);
             sqlite3_bind_int64(doc_stmt, 1, doc_id);
             if (sqlite3_step(doc_stmt) == SQLITE_ROW) {
                 long long total_terms = sqlite3_column_int64(doc_stmt, 0);
@@ -276,7 +276,7 @@ namespace indexer {
                 if (term_idfs.find(term_id) == term_idfs.end()) {
                     // Calculate IDF
                     sqlite3_stmt* term_stmt;
-                    sqlite3_prepare_v2(db_, "SELECT document_count FROM terms WHERE term_id = ?;", -1, &term_stmt, nullptr);
+                    sqlite3_prepare_v2(safe_check_cpy() ? temp_db_ : db_, "SELECT document_count FROM terms WHERE term_id = ?;", -1, &term_stmt, nullptr);
                     sqlite3_bind_int64(term_stmt, 1, term_id);
                     if (sqlite3_step(term_stmt) == SQLITE_ROW) {
                         long long document_count = sqlite3_column_int64(term_stmt, 0);
@@ -291,12 +291,12 @@ namespace indexer {
 
                 // Update TF-IDF in the database
                 sqlite3_stmt* update_stmt;
-                sqlite3_prepare_v2(db_, "UPDATE term_document_matrix SET tf_idf = ? WHERE term_id = ? AND document_id = ?;", -1, &update_stmt, nullptr);
+                sqlite3_prepare_v2(safe_check_cpy() ? temp_db_ : db_, "UPDATE term_document_matrix SET tf_idf = ? WHERE term_id = ? AND document_id = ?;", -1, &update_stmt, nullptr);
                 sqlite3_bind_double(update_stmt, 1, tf_idf);
                 sqlite3_bind_int64(update_stmt, 2, term_id);
                 sqlite3_bind_int64(update_stmt, 3, doc_id);
                 if (sqlite3_step(update_stmt) != SQLITE_DONE) {
-                    std::cerr << "Failed to update TF-IDF: " << sqlite3_errmsg(db_) << std::endl;
+                    std::cerr << "Failed to update TF-IDF: " << sqlite3_errmsg(safe_check_cpy() ? temp_db_ : db_) << std::endl;
                 }
                 sqlite3_finalize(update_stmt);
             }
@@ -307,7 +307,7 @@ namespace indexer {
 
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ insert in memory term document matrix to persistant store ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
     auto Indexer::transform_to_persist() -> void {
-        sqlite3_exec(db_, "BEGIN TRANSACTION;", nullptr, nullptr, nullptr);
+        sqlite3_exec(safe_check_cpy() ? temp_db_ : db_, "BEGIN TRANSACTION;", nullptr, nullptr, nullptr);
         for (const auto& [term, doc_queue] : term_document_matrix) {
             long long term_id = get_or_insert_term(term);
             auto term_docs = doc_queue;
@@ -349,7 +349,7 @@ namespace indexer {
 
         // Update the term_count and total_terms in the documents table
         sqlite3_stmt* stmt;
-        sqlite3_prepare_v2(db_, "UPDATE documents SET term_count = ?, total_terms = ? WHERE document_id = ?;", -1, &stmt, nullptr);
+        sqlite3_prepare_v2(safe_check_cpy() ? temp_db_ : db_, "UPDATE documents SET term_count = ?, total_terms = ? WHERE document_id = ?;", -1, &stmt, nullptr);
         sqlite3_bind_int64(stmt, 1, unique_terms);
         sqlite3_bind_int64(stmt, 2, total_terms);
         sqlite3_bind_int64(stmt, 3, doc_id);
@@ -383,7 +383,7 @@ namespace indexer {
             // Update total_documents in stats table
             std::cout << "Updating total_documents" << std::endl;
             sqlite3_stmt* stmt;
-            sqlite3_prepare_v2(db_, "UPDATE stats SET total_documents = total_documents + 1;", -1, &stmt, nullptr);
+            sqlite3_prepare_v2(safe_check_cpy() ? temp_db_ : db_, "UPDATE stats SET total_documents = total_documents + 1;", -1, &stmt, nullptr);
             if (sqlite3_step(stmt) != SQLITE_DONE) {
                 std::cerr << "Failed to update total_documents: " << sqlite3_errmsg(db_) << std::endl;
             }
@@ -403,8 +403,7 @@ namespace indexer {
 
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ helper to safely set cpy ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
     auto Indexer::safe_check_cpy() -> bool {
-        std::lock_guard<std::mutex> lock(cpy_mutex);  // Lock the mutex for reading cpy
-        std::cout << "cpy is: " << cpy << " (checked by thread " << std::this_thread::get_id() << ")" << std::endl;
+        std::lock_guard<std::mutex> lock(cpy_mutex);
         return cpy;
     }
 
@@ -412,7 +411,24 @@ namespace indexer {
     auto Indexer::set_safe_copy(bool cpy_status) -> void {
         std::lock_guard<std::mutex> lock(cpy_mutex);
         cpy = cpy_status;
-        std::cout << "cpy has been safely set to true by thread " << std::this_thread::get_id() << std::endl;
+    }
+
+    auto Indexer::merge_db() -> void {
+        std::string src = "../db/document_store.db";
+        std::string dest = "../db/temp_document_store.db";
+        
+        std::cout << "Init DB Merge...\n";
+
+        if (std::remove(src.c_str()) == 0) {
+            std::cout << "Original db removed" << std::endl;
+            if (std::rename(dest.c_str(), src.c_str()) == 0) {
+                std::cout << "Temporary file renamed to original file name." << std::endl;
+            } else {
+                std::cerr << "Error renaming temporary file!" << std::endl;
+            }
+        }
+
+        std::cout << "DB updated sucessfully!\n";
     }
 
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ insert create new write buffer db ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
@@ -432,25 +448,14 @@ namespace indexer {
         read_db.close();
         write_db.close();
 
-        if (sqlite3_open(dest.c_str(), &db_) != SQLITE_OK) {
-            std::cerr << "Cannot open database: " << sqlite3_errmsg(db_) << std::endl;
+        if (sqlite3_open(dest.c_str(), &temp_db_) != SQLITE_OK) {
+            std::cerr << "Cannot open database: " << sqlite3_errmsg(temp_db_) << std::endl;
             exit(1);
         }
+        std::cout << "Init document parsing...\n";
 
-        directory_spider();
-
-        // finish serving all current requests
         set_safe_copy(true);
-
-        if (std::remove(src.c_str()) == 0) {
-            std::cout << "Original db removed" << std::endl;
-            if (std::rename(dest.c_str(), src.c_str()) == 0) {
-                std::cout << "Temporary file renamed to original file name." << std::endl;
-            } else {
-                std::cerr << "Error renaming temporary file!" << std::endl;
-            }
-        }
-        // now can carry on with all pending requests
+        directory_spider();
         set_safe_copy(false);
     }
 
@@ -483,13 +488,13 @@ namespace indexer {
         for (const auto& query_term : terms) {
             sqlite3_stmt* stmt;
 
-            if (sqlite3_prepare_v2(db_, search_query, -1, &stmt, nullptr) != SQLITE_OK) {
-                std::cerr << "Failed to prepare statement: " << sqlite3_errmsg(db_) << std::endl;
+            if (sqlite3_prepare_v2(safe_check_cpy() ? temp_db_ : db_, search_query, -1, &stmt, nullptr) != SQLITE_OK) {
+                std::cerr << "Failed to prepare statement: " << sqlite3_errmsg(safe_check_cpy() ? temp_db_ : db_) << std::endl;
                 continue;  // Skip this term and continue with the next one
             }
 
             if (sqlite3_bind_text(stmt, 1, query_term.c_str(), -1, SQLITE_TRANSIENT) != SQLITE_OK) {
-                std::cerr << "Failed to bind query term: " << sqlite3_errmsg(db_) << std::endl;
+                std::cerr << "Failed to bind query term: " << sqlite3_errmsg(safe_check_cpy() ? temp_db_ : db_) << std::endl;
                 sqlite3_finalize(stmt);
                 continue;  // Skip this term and continue with the next one
             }

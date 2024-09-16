@@ -33,8 +33,15 @@ namespace index_stream {
             for (const auto& entry : std::filesystem::directory_iterator("../raw_dump")) {
                 if (std::filesystem::is_regular_file(entry.status())) 
                     file_count++;
+
                 if (file_count > 1) {
                     idxr.update_db();
+                    thread_pool.pause_task_queue();
+
+                    if (thread_pool.await_pending_tasks())
+                        idxr.merge_db();
+                        
+                    thread_pool.resume_task_queue();
                     break;
                 }
             }
@@ -51,6 +58,7 @@ namespace index_stream {
 
         std::cout << "Server Started! Listening on port: " << this->port << std::endl;
         std::thread t(&HTTP_Server::recurring_db_update, this);
+        auto& idxr = indexer::Indexer::get_instance();
 
         for(;;) {
 
