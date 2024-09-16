@@ -383,9 +383,28 @@ namespace indexer {
             // Update total_documents in stats table
             std::cout << "Updating total_documents" << std::endl;
             sqlite3_stmt* stmt;
-            sqlite3_prepare_v2(safe_check_cpy() ? temp_db_ : db_, "UPDATE stats SET total_documents = total_documents + 1;", -1, &stmt, nullptr);
-            if (sqlite3_step(stmt) != SQLITE_DONE) {
-                std::cerr << "Failed to update total_documents: " << sqlite3_errmsg(db_) << std::endl;
+            size_t document_count {};
+            const char* count_query = "SELECT COUNT(*) FROM documents;";
+
+            if (sqlite3_prepare_v2(safe_check_cpy() ? temp_db_ : db_, count_query, -1, &stmt, nullptr) == SQLITE_OK) {
+                if (sqlite3_step(stmt) == SQLITE_ROW) {
+                    document_count = sqlite3_column_int(stmt, 0);
+                } else {
+                    std::cerr << "Failed to count documents: " << sqlite3_errmsg(db_) << std::endl;
+                }
+            } else {
+                std::cerr << "Failed to prepare count query: " << sqlite3_errmsg(db_) << std::endl;
+            }
+            sqlite3_finalize(stmt);
+
+            const char* update_query = "UPDATE stats SET total_documents = ?;";
+            if (sqlite3_prepare_v2(safe_check_cpy() ? temp_db_ : db_, update_query, -1, &stmt, nullptr) == SQLITE_OK) {
+                sqlite3_bind_int(stmt, 1, document_count);
+                if (sqlite3_step(stmt) != SQLITE_DONE) {
+                    std::cerr << "Failed to update total_documents: " << sqlite3_errmsg(db_) << std::endl;
+                }
+            } else {
+                std::cerr << "Failed to prepare update query: " << sqlite3_errmsg(db_) << std::endl;
             }
             sqlite3_finalize(stmt);
         }
